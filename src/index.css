@@ -336,26 +336,61 @@ body {
 /* Segmented toggle for dashboard view */
 .segmented-toggle {
   display: inline-flex;
-  height: 38px;
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 9px;
   padding: 3px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
+
+.role-switcher { position: relative; z-index: 25; }
+.role-switcher-trigger {
+  display: flex;
+  min-width: 156px;
+  height: 36px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 10px 0 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.role-switcher-trigger:hover, .role-switcher-trigger.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,111,237,.12); }
+.role-switcher-trigger > span:nth-child(2) { flex: 1; text-align: left; }
+.role-switcher-trigger > .ti:last-child { color: var(--text-faint); font-size: 14px; }
+.role-switcher-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; background: var(--accent-100); color: var(--accent-600); }
+.role-switcher-icon i { font-size: 14px; }
+.role-switcher-menu { position: absolute; top: calc(100% + 7px); right: 0; width: 214px; border: 1px solid var(--border); border-radius: 12px; padding: 6px; background: var(--surface); box-shadow: var(--shadow-lg); animation: row-menu-in .14s ease-out; }
+.role-switcher-menu button { display: grid; width: 100%; grid-template-columns: 20px 1fr 16px; align-items: center; gap: 9px; border: 0; border-radius: 8px; padding: 10px; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.role-switcher-menu button > i:first-child { color: var(--text-muted); font-size: 15px; }
+.role-switcher-menu button > i:last-child { color: var(--accent-600); font-size: 15px; }
+.role-switcher-menu button:hover { background: #f3f5fa; }
+.role-switcher-menu button.selected { background: var(--accent-100); color: var(--accent-600); }
+.role-switcher-menu button.selected > i:first-child { color: var(--accent-600); }
 .segmented-toggle a {
   display: inline-flex;
-  height: 30px;
+  height: 28px;
   align-items: center;
-  border-radius: 999px;
-  padding: 0 12px;
+  justify-content: center;
+  border-radius: 7px;
+  padding: 0 13px;
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
+  text-decoration: none;
 }
 .segmented-toggle a.active {
-  background: var(--accent-100);
-  color: var(--accent-600);
+  background: linear-gradient(135deg, var(--accent), var(--accent-600));
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgba(59, 111, 237, .26);
 }
 
 .card {
