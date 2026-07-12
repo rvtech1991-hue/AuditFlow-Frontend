@@ -19,11 +19,12 @@ function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
 
-function StatCard({ label, value, delta, tone = "default" }: { label: string; value: number | string; delta: string; tone?: "default" | "hero" | "danger" }) {
+function StatCard({ label, value, delta, tone = "default", progress }: { label: string; value: number | string; delta: string; tone?: "default" | "hero" | "danger"; progress?: number }) {
   return (
     <section className={`stat-card ${tone}`}>
       <span className="stat-label">{label}</span>
       <strong>{value}</strong>
+      {progress !== undefined ? <span className="stat-progress"><span style={{ width: `${progress}%` }} /></span> : null}
       <span className="stat-delta">{delta}</span>
     </section>
   );
@@ -145,8 +146,8 @@ function ExecutiveDashboard() {
       </Card>
 
       <div className="stat-grid">
-        <StatCard label="Total tasks tracked" value={totalTasks} delta="+14 added in range" />
-        <StatCard label="Closure rate" value={`${closureRate}%`} delta="Target 80%" />
+        <StatCard label="Total tasks tracked" value={totalTasks} delta={`Across ${scopedCompanies.length} ${scopedCompanies.length === 1 ? "company" : "companies"}`} tone="hero" />
+        <StatCard label="Closure rate" value={`${closureRate}%`} delta="Target 80%" progress={closureRate} />
         <StatCard label="Avg. time to close" value="5.8d" delta="-0.7d vs prior range" />
         <StatCard label="At-risk tasks" value={atRisk} delta="Past due or due soon" tone="danger" />
       </div>

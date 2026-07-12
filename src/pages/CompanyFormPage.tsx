@@ -93,7 +93,7 @@ export function CompanyFormPage() {
             <h2 id="company-form-title">{isEdit ? "Edit company" : "Add company"}</h2>
             <p>Create the company record and maintain nested sub-company rows in one place.</p>
           </div>
-          <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/companies")}>x</button>
+          <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/companies")}><i className="ti ti-x" /></button>
         </div>
 
         <form className="company-form" onSubmit={handleSubmit}>
@@ -119,7 +119,7 @@ export function CompanyFormPage() {
                 <strong>Sub-companies</strong>
                 <span>{subCompanies.length} rows</span>
               </div>
-              <Button type="button" size="small" onClick={() => setSubCompanies((current) => [...current, emptySubCompany()])}>Add row</Button>
+              <button className="add-sub-company" type="button" onClick={() => setSubCompanies((current) => [...current, emptySubCompany()])}><i className="ti ti-plus" />Add another sub-company</button>
             </div>
 
             <div className="sub-company-row sub-company-row-head">
@@ -136,7 +136,7 @@ export function CompanyFormPage() {
                 <input type="number" min="0" value={subCompany.userCount} onChange={(event) => updateSubCompany(subCompany.localId, "userCount", event.currentTarget.value)} />
                 <input type="number" min="0" value={subCompany.activeTaskCount} onChange={(event) => updateSubCompany(subCompany.localId, "activeTaskCount", event.currentTarget.value)} />
                 <button className="icon-button" type="button" aria-label={`Remove ${subCompany.name || "sub-company row"}`} onClick={() => removeSubCompany(subCompany.localId)} disabled={subCompanies.length === 1}>
-                  x
+                  <i className="ti ti-trash" />
                 </button>
               </div>
             ))}

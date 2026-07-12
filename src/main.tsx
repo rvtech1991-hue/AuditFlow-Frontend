@@ -18,6 +18,11 @@ import { TaskCreatePage } from "./pages/TaskCreatePage";
 import { TaskDetailsPage } from "./pages/TaskDetailsPage";
 import { TaskGridPage } from "./pages/TaskGridPage";
 import { UserManagementPage } from "./pages/UserManagementPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { PlatformAdminShell } from "./components/layout/PlatformAdminShell";
+import { CreateTenantPage, SystemOverviewPage, TenantDetailPage, TenantListPage } from "./pages/PlatformAdminPages";
 import "./index.css";
 
 function PublicPage({ route }: { route: RouteMeta }) {
@@ -55,6 +60,10 @@ function ProtectedRoute({ route }: { route: RouteMeta }) {
     return <InviteUserPage />;
   }
 
+  if (route.path.startsWith("/admin/")) {
+    return <PlatformAdminShell>{route.path === "/admin/tenants" ? <TenantListPage /> : route.path === "/admin/tenants/new" ? <CreateTenantPage /> : route.path === "/admin/tenants/:tenantId" ? <TenantDetailPage /> : route.path === "/admin/system" ? <SystemOverviewPage /> : <PlaceholderPage route={route} />}</PlatformAdminShell>;
+  }
+
   return (
     <AppShell>
       {route.path === "/dashboard" ? (
@@ -71,6 +80,12 @@ function ProtectedRoute({ route }: { route: RouteMeta }) {
         <CompanyManagementPage />
       ) : route.path === "/users" ? (
         <UserManagementPage />
+      ) : route.path === "/notifications" ? (
+        <NotificationsPage />
+      ) : route.path === "/profile" ? (
+        <ProfilePage />
+      ) : route.path === "/reports" ? (
+        <ReportsPage />
       ) : (
         <PlaceholderPage route={route} />
       )}

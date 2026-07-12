@@ -1,6 +1,6 @@
 import { ChangeEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card } from "../components/ui";
+import { Badge, Button } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { createMockTask, taskDirectory, type TaskPriority } from "../mock-data/tasks";
 
@@ -132,28 +132,18 @@ export function TaskBulkCreatePage() {
   };
 
   return (
-    <div className="task-flow-page">
-      <div className="task-actions-row">
-        <div>
-          <h2>Bulk create tasks from Excel</h2>
-          <p>Upload is mocked for now. Valid rows can be imported while invalid rows remain editable or re-uploadable.</p>
+    <main className="modal-route-page">
+      <section className="bulk-upload-modal" aria-labelledby="bulk-upload-title">
+        <div className="modal-route-heading">
+          <div><h2 id="bulk-upload-title">Bulk create tasks</h2><p>Use this for audits that surface many findings at once — for example, the same checklist item across many sub-companies.</p></div>
+          <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/tasks")}><i className="ti ti-x" /></button>
         </div>
-        <Button onClick={() => navigate("/tasks")}>Back to tasks</Button>
-      </div>
-
-      <Card>
-        <div className="bulk-toolbar">
-          <Button onClick={downloadTemplate}>Download template</Button>
-          <label className="button primary">
-            Upload Excel
-            <input className="visually-hidden" type="file" accept=".xlsx,.xls,.csv" onChange={simulateUpload} />
-          </label>
-          {fileName ? <span className="page-subtitle">Previewing {fileName}</span> : null}
-        </div>
-      </Card>
-
-      {rows.length || importedCount ? (
-        <Card>
+        <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>Pre-filled with your companies, sub-companies, and active users for validation.</p></div><Button size="small" onClick={downloadTemplate}><i className="ti ti-download" />Download .xlsx</Button></div>
+        <div className="bulk-step-heading"><span>2</span><strong>Upload your filled file</strong></div>
+        <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={simulateUpload} /><i className="ti ti-cloud-upload" /><p>{fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag an Excel file here or click to upload"}</p></label>
+        <div className="bulk-step-heading"><span>3</span><strong>Review before import</strong></div>
+        {rows.length || importedCount ? (
+          <div className="bulk-preview-content">
           <div className="bulk-summary">
             <strong>{validRows.length} valid</strong>
             <strong>{invalidRows.length} invalid</strong>
@@ -210,11 +200,11 @@ export function TaskBulkCreatePage() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <p className="page-subtitle">All valid rows have been imported. Upload another file to continue.</p>
-          )}
-        </Card>
-      ) : null}
-    </div>
+          ) : <p className="page-subtitle">All valid rows have been imported. Upload another file to continue.</p>}
+          </div>
+        ) : <p className="bulk-empty-note">Upload a completed template to preview valid rows and fix any issues before import.</p>}
+        <div className="modal-footer-actions"><Button type="button" onClick={() => navigate("/tasks")}>Cancel</Button><Button variant="primary" disabled={!validRows.length} onClick={importValidRows}>Import {validRows.length || ""} tasks</Button></div>
+      </section>
+    </main>
   );
 }

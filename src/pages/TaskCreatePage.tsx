@@ -58,7 +58,7 @@ export function TaskCreatePage() {
             <p>Log a discrepancy found during audit and assign it for resolution.</p>
           </div>
           <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/tasks")}>
-            x
+            <i className="ti ti-x" />
           </button>
         </div>
 
@@ -123,7 +123,7 @@ export function TaskCreatePage() {
               multiple
               onChange={(event) => setAttachmentNames(Array.from(event.currentTarget.files ?? []).map((file) => file.name))}
             />
-            <span aria-hidden="true">Upload</span>
+            <i className="ti ti-cloud-upload" aria-hidden="true" />
             <p>{attachmentNames.length ? attachmentNames.join(", ") : "Drag files here or click to upload"}</p>
           </label>
 

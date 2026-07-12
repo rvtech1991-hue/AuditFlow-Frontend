@@ -63,7 +63,7 @@ export function InviteUserPage() {
             <h2 id="invite-user-title">Invite user</h2>
             <p>They will receive an email invite to set their password and join AuditFlow.</p>
           </div>
-          <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/users")}>x</button>
+          <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/users")}><i className="ti ti-x" /></button>
         </div>
 
         <form className="invite-user-form" onSubmit={handleSubmit}>
@@ -82,7 +82,7 @@ export function InviteUserPage() {
             <label>Role</label>
             <div className="role-chip-row" role="group" aria-label="User role">
               {allowedRoles.map((item) => (
-                <button key={item} className={`chip ${selectedRole === item ? "active" : ""}`} type="button" onClick={() => changeRole(item)}>
+                <button key={item} className={`chip ${selectedRole === item ? "active-chip" : ""}`} type="button" onClick={() => changeRole(item)}>
                   {item}
                 </button>
               ))}

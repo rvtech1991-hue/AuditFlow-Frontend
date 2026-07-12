@@ -52,17 +52,19 @@ export function UserManagementPage() {
     <div className="user-page">
       <div className="task-actions-row">
         <div>
-          <h2>User management</h2>
-          <p>
-            {visibleUsers.length} users visible.
-            {role === "Company admin" ? " Scoped to Meridian Group only." : " Auditor scope includes all firm and client users."}
-          </p>
+          <h2>Users</h2>
+          <p>{scopedUsers.length} users across {new Set(scopedUsers.map((user) => user.company)).size} companies</p>
         </div>
         {canInvite ? <Button variant="primary" onClick={() => navigate("/users/new")}>Invite user</Button> : null}
       </div>
 
-      <Card>
-        <div className="task-filter-row">
+      <div className="user-filter-chips">
+        <span className="chip active-chip"><i className="ti ti-users" />All roles</span>
+        <span className="chip"><i className="ti ti-building" />Company: All</span>
+        <span className="chip"><i className="ti ti-circle-check" />Status: {status}</span>
+      </div>
+      <Card className="user-table-card">
+        <div className="task-filter-row user-search-row">
           <input className="task-filter-search" value={query} onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search name, email, role, company" />
           <select value={status} onChange={(event) => setStatus(event.currentTarget.value as AuditUserStatus | "All")}>
             {statusOptions.map((option) => <option key={option}>{option}</option>)}
@@ -93,11 +95,11 @@ export function UserManagementPage() {
               render: (user) => (
                 <RowActionMenu
                   actions={[
-                    {
+                    ...(user.status === "Invited" ? [{
                       label: "Resend activation link",
                       icon: "Send",
                       onClick: () => resendInvite(user),
-                    },
+                    }] : []),
                     {
                       label: "Deactivate user",
                       icon: "Deactivate",

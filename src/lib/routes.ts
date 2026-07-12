@@ -11,6 +11,7 @@ export const routes: RouteMeta[] = [
   { path: "/tasks/new", title: "Create new task", subtitle: "Auditor-only task creation modal route.", access: ["Auditor"] },
   { path: "/tasks/bulk-upload", title: "Bulk create tasks", subtitle: "Excel import workflow placeholder.", access: ["Auditor"] },
   { path: "/tasks/:taskId", title: "Task details", subtitle: "Overview, comments, documents, status history, and audit timeline.", access: ["Auditor", "Company admin", "Employee"] },
+  { path: "/reports", title: "Reports", subtitle: "Filter, review, and export scoped task data.", access: ["Auditor", "Company admin", "Employee"] },
   { path: "/companies", title: "Company management", subtitle: "Company and sub-company list.", access: ["Auditor", "Company admin"] },
   { path: "/companies/new", title: "Add company", subtitle: "Company and nested sub-company creation route.", access: ["Auditor"] },
   { path: "/companies/:companyId/edit", title: "Edit company", subtitle: "Company and nested sub-company edit route.", access: ["Auditor"] },
@@ -19,6 +20,10 @@ export const routes: RouteMeta[] = [
   { path: "/notifications", title: "Notifications", subtitle: "Notification center placeholder.", access: ["Platform admin", "Auditor", "Company admin", "Employee"] },
   { path: "/profile", title: "Profile", subtitle: "Identity, theme, notification preferences, and logout.", access: ["Platform admin", "Auditor", "Company admin", "Employee"] },
   { path: "/admin/tenants", title: "Auditor accounts", subtitle: "Platform admin tenant management placeholder.", access: ["Platform admin"] },
+  { path: "/admin/tenants/new", title: "Create auditor account", subtitle: "Provision an audit-firm tenant.", access: ["Platform admin"] },
+  { path: "/admin/tenants/:tenantId", title: "Tenant overview", subtitle: "Subscription, usage, and contacts.", access: ["Platform admin"] },
+  { path: "/admin/system", title: "System overview", subtitle: "Platform health and tenant usage.", access: ["Platform admin"] },
+  { path: "/admin/audit-log", title: "Audit log", subtitle: "Platform administrative activity.", access: ["Platform admin"] },
 ];
 
 export const navItems: NavItem[] = [

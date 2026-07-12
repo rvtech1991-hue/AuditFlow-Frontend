@@ -270,6 +270,7 @@ export function TaskDetailsPage() {
   if (!initialTask) return <Navigate to="/tasks" replace />;
   if (!canAccess) return <Navigate to="/dashboard" replace />;
   if (!task) return null;
+  const primaryDocument = taskDocuments.find((document) => document.taskId === task.id);
 
   const changeStatus = (status: TaskStatus, comment?: string) => {
     if (role !== "Auditor" && (status === "closed" || task.status === "closed")) return;
@@ -307,6 +308,12 @@ export function TaskDetailsPage() {
           </div>
         ) : null}
       </div>
+
+      <Card className="task-intro-card">
+        <div className="task-intro-meta"><span>{task.id}</span><Badge status={badgeStatus(task.status)} label={statusLabel(task.status)} /><span className="priority-pill">{task.priority} priority</span></div>
+        <p>{task.description}</p>
+        {primaryDocument ? <button className="task-document-chip" type="button" onClick={() => setActiveTab("documents")}><i className="ti ti-file" />{primaryDocument.name}</button> : null}
+      </Card>
 
       <div className="task-tabs" role="tablist" aria-label="Task details tabs">
         {tabs.map((tab) => (

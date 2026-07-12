@@ -12,7 +12,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <NavLink to="/dashboard" className="brand">
-        <span className="brand-mark">A</span>
+        <span className="brand-mark"><i className="ti ti-shield-check" /></span>
         <span>AuditFlow</span>
       </NavLink>
 
@@ -24,7 +24,7 @@ export function Sidebar() {
             <div className="nav-eyebrow">{group}</div>
             {items.map((item) => (
               <NavLink key={item.path} to={item.path} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-                <span aria-hidden="true">{item.icon}</span>
+                <i className={`ti ${({ Dashboard: "ti-layout-dashboard", Tasks: "ti-checkbox", Reports: "ti-chart-bar", Companies: "ti-building", Users: "ti-users", "Auditor accounts": "ti-building-bank", Notifications: "ti-bell", Profile: "ti-user-circle" } as Record<string, string>)[item.label]}`} aria-hidden="true" />
                 <span>{item.label}</span>
               </NavLink>
             ))}

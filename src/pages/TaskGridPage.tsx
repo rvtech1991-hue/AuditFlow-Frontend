@@ -65,25 +65,25 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
 
   const filterOptions = useMemo(() => getTaskFilterOptions(role, user.email), [role, user.email]);
   const showCompanyColumn = mode === "all";
-  const title = mode === "week" ? "Task grid" : "Task - full list";
+  const title = mode === "week" ? "Tasks" : "All tasks";
   const subtitle =
     mode === "week"
-      ? "Current-week tasks after role scope and filters."
-      : "All scoped companies and historical tasks, unscoped by week.";
+      ? "All tasks across your scoped companies — current week by default."
+      : "All tasks across your scoped companies and historical audit periods.";
 
   return (
     <div className="task-page">
       <div className="task-actions-row">
         <div>
           <h2>{title}</h2>
-          <p>{subtitle} {rows.length} tasks visible. {roleScopeText(role)}</p>
+          <p>{subtitle} {rows.length} tasks visible.</p>
         </div>
         <div className="task-action-buttons">
           {mode === "week" ? <Button onClick={() => navigate("/tasks/all")}>Full list</Button> : <Button onClick={() => navigate("/tasks")}>Current week</Button>}
           {role === "Auditor" ? (
             <>
-            <Button onClick={() => navigate("/tasks/bulk-upload")}>Bulk upload</Button>
-            <Button variant="primary" onClick={() => navigate("/tasks/new")}>Create new task</Button>
+            <Button onClick={() => navigate("/tasks/bulk-upload")}><i className="ti ti-file-upload" />Bulk upload</Button>
+            <Button variant="primary" onClick={() => navigate("/tasks/new")}><i className="ti ti-plus" />Create new task</Button>
             </>
           ) : null}
         </div>
