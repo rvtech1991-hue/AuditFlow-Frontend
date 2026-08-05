@@ -1,35 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, CellPerson, Chip, Table } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
-import { getTaskFilterOptions, queryTasks, type AuditTask, type TaskStatus } from "../mock-data/tasks";
+import { ApiError } from "../lib/apiClient";
+import { getTaskFilterOptions, getTasks, type TaskEntry, type TaskStatus } from "../services/tasks";
 
+// "Overdue" isn't a real backend status (it's a due-date-derived flag folded into the display
+// status client-side — see displayTaskStatus), so it can't be sent as a `status` query param.
+// It's filtered client-side against the already-fetched page instead, further down.
 const statusOptions: Array<{ label: string; value: TaskStatus | "all" }> = [
   { label: "All statuses", value: "all" },
   { label: "Open", value: "open" },
   { label: "In progress", value: "progress" },
   { label: "Overdue", value: "overdue" },
   { label: "Resolved", value: "resolved" },
+  { label: "Reopened", value: "reopened" },
   { label: "Closed", value: "closed" },
 ];
 
 function formatDate(date: string) {
+  if (!date) return "—";
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${date}T00:00:00`));
-}
-
-function statusForBadge(status: TaskStatus) {
-  return status === "resolved" ? "progress" : status;
-}
-
-function roleScopeText(role: string) {
-  if (role === "Company admin") return "Server-scoped to Meridian Group company tasks.";
-  if (role === "Employee") return "Server-scoped to tasks assigned to you.";
-  if (role === "Platform admin") return "Platform admins cannot access audit task content.";
-  return "Server-scoped to all companies mapped to this auditor.";
 }
 
 export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { role, user } = useRole();
   const [company, setCompany] = useState("");
   const [subCompany, setSubCompany] = useState("");
@@ -46,24 +43,24 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
     setCompany("");
     setSubCompany("");
     setAssignee("");
-    setStatus("all");
+    // A dashboard stat card / donut segment can deep-link here with a status pre-applied
+    // (e.g. /tasks/all?status=open) — honor it once on arrival, same as any other reset default.
+    setStatus((searchParams.get("status") as TaskStatus | null) ?? "all");
     setQuery("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, role, user.email]);
 
-  const rows = useMemo(
-    () =>
-      queryTasks(role, user.email, {
-        dateRange,
-        company: company || undefined,
-        subCompany: subCompany || undefined,
-        assignee: assignee || undefined,
-        status,
-        query,
-      }),
-    [assignee, company, dateRange, query, role, status, subCompany, user.email],
-  );
+  const filterOptionsQuery = useQuery({ queryKey: ["tasks", "filter-options", role], queryFn: () => getTaskFilterOptions(role, user.email) });
+  const tasksQuery = useQuery({
+    queryKey: ["tasks", role, user.email, dateRange, company, subCompany, assignee, status, query],
+    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" ? "all" : status, query: query || undefined }),
+  });
 
-  const filterOptions = useMemo(() => getTaskFilterOptions(role, user.email), [role, user.email]);
+  const filterOptions = filterOptionsQuery.data ?? { companies: [], subCompanies: [], assignees: [] };
+  // "Overdue" has no backend status to filter by — narrow the fetched page down client-side
+  // against the display status instead (see the statusOptions comment above).
+  const fetchedRows = tasksQuery.data?.items ?? [];
+  const rows = status === "overdue" ? fetchedRows.filter((task) => task.status === "overdue") : fetchedRows;
   const showCompanyColumn = mode === "all";
   const title = mode === "week" ? "Tasks" : "All tasks";
   const subtitle =
@@ -94,16 +91,16 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
           <Chip active>{mode === "week" ? "This week" : dateRange === "all" ? "All time" : dateRange === "last30" ? "Last 30 days" : "Last quarter"}</Chip>
           <input className="task-filter-search" placeholder="Filter by task ID or description" value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
           <select value={company} onChange={(event) => setCompany(event.currentTarget.value)} disabled={role === "Company admin"}>
-            <option value="">{role === "Company admin" ? filterOptions.companies[0] ?? "Company locked" : "Company: All"}</option>
-            {filterOptions.companies.map((item) => <option key={item}>{item}</option>)}
+            <option value="">{role === "Company admin" ? filterOptions.companies[0]?.label ?? "Company locked" : "Company: All"}</option>
+            {filterOptions.companies.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           <select value={subCompany} onChange={(event) => setSubCompany(event.currentTarget.value)}>
             <option value="">Sub-company: All</option>
-            {filterOptions.subCompanies.map((item) => <option key={item}>{item}</option>)}
+            {filterOptions.subCompanies.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           <select value={assignee} onChange={(event) => setAssignee(event.currentTarget.value)} disabled={role === "Employee"}>
             <option value="">{role === "Employee" ? "Assigned to you" : "Assignee: All"}</option>
-            {filterOptions.assignees.map((item) => <option key={item}>{item}</option>)}
+            {filterOptions.assignees.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           <select value={status} onChange={(event) => setStatus(event.currentTarget.value as TaskStatus | "all")}>
             {statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -118,24 +115,30 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
           ) : null}
         </div>
 
-        <Table<AuditTask>
-          rows={rows}
-          onRowClick={(task) => navigate(`/tasks/${task.id}`)}
-          emptyState="No tasks match the selected filters."
-          columns={[
-            { key: "id", header: "Task ID", render: (task) => <span className="link-button">{task.id}</span> },
-            { key: "title", header: "Description", render: (task) => <span className="task-title-button">{task.title}<small className="table-subline">{task.description}</small></span> },
-            ...(showCompanyColumn ? [{ key: "company", header: "Company", render: (task: AuditTask) => <span>{task.company}<small className="table-subline">{task.subCompany}</small></span> }] : []),
-            { key: "createdOn", header: "Created on", render: (task) => formatDate(task.createdOn) },
-            { key: "dueDate", header: "Due date", render: (task) => formatDate(task.dueDate) },
-            ...(mode === "week" ? [{ key: "createdBy", header: "Created by" }] : []),
-            { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
-            { key: "status", header: "Status", render: (task) => <Badge status={statusForBadge(task.status)} label={task.status === "resolved" ? "Resolved" : undefined} /> },
-          ]}
-        />
+        {tasksQuery.isLoading ? (
+          <p className="data-state">Loading tasks…</p>
+        ) : tasksQuery.error ? (
+          <p className="data-state is-error">{tasksQuery.error instanceof ApiError ? tasksQuery.error.detail : "Couldn't load tasks."}</p>
+        ) : (
+          <Table<TaskEntry>
+            rows={rows}
+            onRowClick={(task) => navigate(`/tasks/${task.id}`)}
+            emptyState="No tasks match the selected filters."
+            columns={[
+              { key: "id", header: "Task ID", render: (task) => <span className="link-button">{task.taskNumber}</span> },
+              { key: "title", header: "Description", render: (task) => <span className="task-title-button">{task.title}{task.description ? <small className="table-subline">{task.description}</small> : null}</span> },
+              ...(showCompanyColumn ? [{ key: "company", header: "Company", render: (task: TaskEntry) => <span>{task.company}<small className="table-subline">{task.subCompany}</small></span> }] : []),
+              { key: "createdOn", header: "Created on", render: (task) => formatDate(task.createdOn) },
+              { key: "dueDate", header: "Due date", render: (task) => formatDate(task.dueDate) },
+              ...(mode === "week" ? [{ key: "createdBy", header: "Created by" }] : []),
+              { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
+              { key: "status", header: "Status", render: (task) => <Badge status={task.status} /> },
+            ]}
+          />
+        )}
 
         <div className="pagination-footer">
-          <span>Showing {rows.length} of {rows.length} scoped tasks</span>
+          <span>Showing {rows.length} of {status === "overdue" ? rows.length : tasksQuery.data?.totalCount ?? rows.length} scoped tasks</span>
           <div>
             <Button size="small">Prev</Button>
             {mode === "all" ? <Button size="small" variant="primary">1</Button> : null}

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, CellPerson, RowActionMenu, Table } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
-import { deactivateUser, getUsersForRole, resendActivationLink, type AuditUser, type AuditUserStatus } from "../mock-data/users";
+import { ApiError } from "../lib/apiClient";
+import { deactivateUser, getUsersForRole, resendActivationLink, type AuditUser, type AuditUserStatus } from "../services/users";
 
 const statusOptions: Array<AuditUserStatus | "All"> = ["All", "Invited", "Active", "Deactivated"];
 
@@ -24,10 +26,11 @@ function statusBadge(status: AuditUserStatus) {
 export function UserManagementPage() {
   const navigate = useNavigate();
   const { role } = useRole();
-  const [version, setVersion] = useState(0);
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<AuditUserStatus | "All">("All");
-  const scopedUsers = useMemo(() => getUsersForRole(role), [role, version]);
+  const usersQuery = useQuery({ queryKey: ["users", role], queryFn: () => getUsersForRole(role) });
+  const scopedUsers = usersQuery.data ?? [];
   const visibleUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return scopedUsers.filter((user) => {
@@ -38,15 +41,17 @@ export function UserManagementPage() {
   }, [query, scopedUsers, status]);
   const canInvite = role === "Auditor" || role === "Company admin";
 
-  const resendInvite = (user: AuditUser) => {
-    resendActivationLink(user.id);
-    setVersion((current) => current + 1);
-  };
+  const invalidateUsers = () => queryClient.invalidateQueries({ queryKey: ["users", role] });
+  const resendMutation = useMutation({ mutationFn: (user: AuditUser) => resendActivationLink(user.id), onSuccess: invalidateUsers });
+  const deactivateMutation = useMutation({ mutationFn: (user: AuditUser) => deactivateUser(user.id), onSuccess: invalidateUsers });
 
-  const deactivate = (user: AuditUser) => {
-    deactivateUser(user.id);
-    setVersion((current) => current + 1);
-  };
+  if (usersQuery.isLoading) {
+    return <div className="user-page"><p className="data-state">Loading users…</p></div>;
+  }
+  if (usersQuery.error) {
+    const detail = usersQuery.error instanceof ApiError ? usersQuery.error.detail : "Couldn't load users.";
+    return <div className="user-page"><p className="data-state is-error">{detail}</p></div>;
+  }
 
   return (
     <div className="user-page">
@@ -98,14 +103,14 @@ export function UserManagementPage() {
                     ...(user.status === "Invited" ? [{
                       label: "Resend activation link",
                       icon: "Send",
-                      onClick: () => resendInvite(user),
+                      onClick: () => resendMutation.mutate(user),
                     }] : []),
                     {
                       label: "Deactivate user",
                       icon: "Deactivate",
                       destructive: true,
                       dividerBefore: true,
-                      onClick: () => deactivate(user),
+                      onClick: () => deactivateMutation.mutate(user),
                     },
                   ]}
                 />

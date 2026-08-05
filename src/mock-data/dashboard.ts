@@ -2,22 +2,25 @@ import type { Status } from "../types";
 
 export type DashboardTask = {
   id: string;
+  // Display-only task code — always equal to `id` in mock mode; in live mode `id` is the real
+  // routable GUID while this holds the human-readable code (see services/dashboard.ts).
+  taskNumber: string;
   title: string;
   company: string;
   subCompany: string;
   assignee: string;
   assigneeInitials: string;
-  status: Extract<Status, "open" | "progress" | "overdue" | "closed">;
+  status: Exclude<Status, "active" | "invited">;
   dueInDays: number;
 };
 
 export const dashboardTasks: DashboardTask[] = [
-  { id: "AF-1024", title: "Bank reconciliation mismatch", company: "Meridian Group", subCompany: "North Finance", assignee: "Nisha Rao", assigneeInitials: "NR", status: "progress", dueInDays: 2 },
-  { id: "AF-1025", title: "GST input credit evidence missing", company: "Meridian Group", subCompany: "South Plant", assignee: "Dev Mehta", assigneeInitials: "DM", status: "overdue", dueInDays: -4 },
-  { id: "AF-1026", title: "Payroll approval trail incomplete", company: "Kestrel Logistics", subCompany: "Depot East", assignee: "Anika Shah", assigneeInitials: "AS", status: "closed", dueInDays: 0 },
-  { id: "AF-1027", title: "Vendor onboarding checklist gap", company: "Patel & Co.", subCompany: "Shared Services", assignee: "Rahul Iyer", assigneeInitials: "RI", status: "open", dueInDays: 6 },
-  { id: "AF-1028", title: "Missing fixed asset verification", company: "Kestrel Logistics", subCompany: "Depot West", assignee: "J. Tan", assigneeInitials: "JT", status: "overdue", dueInDays: -8 },
-  { id: "AF-1029", title: "Expense policy exception not approved", company: "Meridian Group", subCompany: "Corporate", assignee: "A. Verma", assigneeInitials: "AV", status: "progress", dueInDays: 3 },
+  { id: "AF-1024", taskNumber: "AF-1024", title: "Bank reconciliation mismatch", company: "Meridian Group", subCompany: "North Finance", assignee: "Nisha Rao", assigneeInitials: "NR", status: "progress", dueInDays: 2 },
+  { id: "AF-1025", taskNumber: "AF-1025", title: "GST input credit evidence missing", company: "Meridian Group", subCompany: "South Plant", assignee: "Dev Mehta", assigneeInitials: "DM", status: "overdue", dueInDays: -4 },
+  { id: "AF-1026", taskNumber: "AF-1026", title: "Payroll approval trail incomplete", company: "Kestrel Logistics", subCompany: "Depot East", assignee: "Anika Shah", assigneeInitials: "AS", status: "closed", dueInDays: 0 },
+  { id: "AF-1027", taskNumber: "AF-1027", title: "Vendor onboarding checklist gap", company: "Patel & Co.", subCompany: "Shared Services", assignee: "Rahul Iyer", assigneeInitials: "RI", status: "open", dueInDays: 6 },
+  { id: "AF-1028", taskNumber: "AF-1028", title: "Missing fixed asset verification", company: "Kestrel Logistics", subCompany: "Depot West", assignee: "J. Tan", assigneeInitials: "JT", status: "overdue", dueInDays: -8 },
+  { id: "AF-1029", taskNumber: "AF-1029", title: "Expense policy exception not approved", company: "Meridian Group", subCompany: "Corporate", assignee: "A. Verma", assigneeInitials: "AV", status: "progress", dueInDays: 3 },
 ];
 
 export const companies = [

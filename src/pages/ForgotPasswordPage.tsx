@@ -3,21 +3,30 @@ import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { AuthShell } from "../components/layout/AuthShell";
 import { Button, FormField } from "../components/ui";
+import { forgotPassword } from "../services/auth";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      // Always returns success regardless of whether the email exists (no user enumeration) —
+      // per BACKEND_INTEGRATION_GUIDE SS5, so there's nothing to branch on here.
+      await forgotPassword(email);
+    } finally {
+      setIsSubmitting(false);
+      setSubmitted(true);
+    }
   };
 
   const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => setEmail(event.currentTarget.value);
 
   return (
     <AuthShell
-      browserUrl="app.auditflow.io/forgot-password"
       copy={{
         quote: "Reset access without breaking the audit trail. Your activity, evidence, and sign-offs stay attached to your account.",
         who: "AuditFlow account recovery",
@@ -36,8 +45,8 @@ export function ForgotPasswordPage() {
         ) : (
           <>
             <FormField label="Work email" type="email" placeholder="name@firm.com" value={email} onChange={handleEmailChange} required />
-            <Button className="full-width auth-submit" variant="primary" type="submit">
-              Send reset link
+            <Button className="full-width auth-submit" variant="primary" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Sending..." : "Send reset link"}
             </Button>
           </>
         )}

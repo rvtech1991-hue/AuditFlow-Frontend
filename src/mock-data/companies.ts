@@ -163,3 +163,10 @@ export function setCompanyStatus(companyId: string, status: CompanyStatus) {
   company.status = status;
   return company;
 }
+
+export function deleteCompany(companyId: string) {
+  const index = auditCompanies.findIndex((company) => company.id === companyId);
+  if (index === -1) return false;
+  auditCompanies.splice(index, 1);
+  return true;
+}

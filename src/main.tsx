@@ -1,7 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
+import { queryClient } from "./lib/queryClient";
 import { RoleProvider, useRole } from "./lib/RoleContext";
 import { routes } from "./lib/routes";
 import type { RouteMeta } from "./types";
@@ -10,6 +12,7 @@ import { CompanyFormPage } from "./pages/CompanyFormPage";
 import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { InviteUserPage } from "./pages/InviteUserPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SignInPage } from "./pages/SignInPage";
@@ -29,6 +32,7 @@ function PublicPage({ route }: { route: RouteMeta }) {
   if (route.path === "/signin") return <SignInPage />;
   if (route.path === "/invite/accept") return <AcceptInvitePage />;
   if (route.path === "/forgot-password") return <ForgotPasswordPage />;
+  if (route.path === "/reset-password") return <ResetPasswordPage />;
   return <PlaceholderPage route={route} />;
 }
 
@@ -100,20 +104,22 @@ function HomeRedirect() {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RoleProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomeRedirect />} />
-          {routes.map((route) => (
-            <Route
-              key={route.path}
-              path={route.path}
-              element={route.public ? <PublicPage route={route} /> : <ProtectedRoute route={route} />}
-            />
-          ))}
-          <Route path="*" element={<HomeRedirect />} />
-        </Routes>
-      </BrowserRouter>
-    </RoleProvider>
+    <QueryClientProvider client={queryClient}>
+      <RoleProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomeRedirect />} />
+            {routes.map((route) => (
+              <Route
+                key={route.path}
+                path={route.path}
+                element={route.public ? <PublicPage route={route} /> : <ProtectedRoute route={route} />}
+              />
+            ))}
+            <Route path="*" element={<HomeRedirect />} />
+          </Routes>
+        </BrowserRouter>
+      </RoleProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );

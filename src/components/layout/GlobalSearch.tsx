@@ -1,14 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useRole } from "../../lib/RoleContext";
-import { searchTasks } from "../../mock-data/tasks";
+import { searchTasks } from "../../services/tasks";
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const { role, user } = useRole();
   const navigate = useNavigate();
-  const results = useMemo(() => searchTasks(role, user.email, query), [query, role, user.email]);
+
+  // Debounce so we don't fire a request per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const searchQuery = useQuery({
+    queryKey: ["tasks", "search", role, user.email, debouncedQuery],
+    queryFn: () => searchTasks(role, user.email, debouncedQuery),
+    enabled: debouncedQuery.trim().length > 0,
+  });
+  const results = searchQuery.data ?? [];
   const open = focused && query.trim().length > 0;
 
   return (
@@ -36,10 +50,8 @@ export function GlobalSearch() {
                   navigate(`/tasks/${task.id}`);
                 }}
               >
-                <strong>{task.id}</strong>
+                <strong>{task.taskNumber}</strong>
                 <span>{task.title}</span>
-                <small>{task.description}</small>
-                <small>{task.company} - {task.subCompany} - {task.assignee}</small>
               </button>
             ))
           ) : (

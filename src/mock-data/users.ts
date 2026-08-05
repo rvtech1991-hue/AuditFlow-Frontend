@@ -156,3 +156,10 @@ export function deactivateUser(userId: string) {
 export function resendActivationLink(userId: string) {
   return auditUsers.find((item) => item.id === userId);
 }
+
+export function activateUser(userId: string) {
+  const user = auditUsers.find((item) => item.id === userId);
+  if (!user) return undefined;
+  user.status = "Active";
+  return user;
+}

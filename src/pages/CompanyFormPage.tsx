@@ -1,7 +1,10 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "../components/ui";
-import { createCompany, getCompanyById, updateCompany, type CompanyInput } from "../mock-data/companies";
+import { ApiError } from "../lib/apiClient";
+import { createCompany, getCompanyById, updateCompany, type CompanyEntry } from "../services/companies";
+import type { CompanyInput } from "../mock-data/companies";
 
 type SubCompanyDraft = CompanyInput["subCompanies"][number] & { localId: string };
 
@@ -15,27 +18,20 @@ function emptySubCompany(): SubCompanyDraft {
   };
 }
 
-function draftFromCompany(companyId: string | undefined): {
+function draftFromCompany(company: CompanyEntry | undefined): {
   name: string;
   industry: string;
   primaryContactEmail: string;
   subCompanies: SubCompanyDraft[];
 } {
-  const company = companyId ? getCompanyById(companyId) : undefined;
   if (!company) {
-    return {
-      name: "",
-      industry: "",
-      primaryContactEmail: "",
-      subCompanies: [emptySubCompany()],
-    };
+    return { name: "", industry: "", primaryContactEmail: "", subCompanies: [emptySubCompany()] };
   }
-
   return {
     name: company.name,
     industry: company.industry,
     primaryContactEmail: company.primaryContactEmail,
-    subCompanies: company.subCompanies.map((subCompany) => ({ ...subCompany, localId: subCompany.id })),
+    subCompanies: company.subCompanies.length > 0 ? company.subCompanies.map((subCompany) => ({ ...subCompany, localId: subCompany.id })) : [emptySubCompany()],
   };
 }
 
@@ -43,16 +39,35 @@ export function CompanyFormPage() {
   const { companyId } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(companyId);
-  const existingCompany = companyId ? getCompanyById(companyId) : undefined;
-  const initialDraft = useMemo(() => draftFromCompany(companyId), [companyId]);
-  const [name, setName] = useState(initialDraft.name);
-  const [industry, setIndustry] = useState(initialDraft.industry);
-  const [primaryContactEmail, setPrimaryContactEmail] = useState(initialDraft.primaryContactEmail);
-  const [subCompanies, setSubCompanies] = useState<SubCompanyDraft[]>(initialDraft.subCompanies);
-  const hasSubCompany = subCompanies.some((subCompany) => subCompany.name.trim());
-  const canSubmit = name.trim() && primaryContactEmail.trim() && hasSubCompany;
 
-  if (isEdit && !existingCompany) return <Navigate to="/companies" replace />;
+  const companyQuery = useQuery({
+    queryKey: ["company", companyId],
+    queryFn: () => getCompanyById(companyId!),
+    enabled: isEdit,
+  });
+
+  const [name, setName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [primaryContactEmail, setPrimaryContactEmail] = useState("");
+  const [subCompanies, setSubCompanies] = useState<SubCompanyDraft[]>([emptySubCompany()]);
+  const [hydrated, setHydrated] = useState(!isEdit);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isEdit || !companyQuery.isSuccess || hydrated) return;
+    const draft = draftFromCompany(companyQuery.data);
+    setName(draft.name);
+    setIndustry(draft.industry);
+    setPrimaryContactEmail(draft.primaryContactEmail);
+    setSubCompanies(draft.subCompanies);
+    setHydrated(true);
+  }, [isEdit, companyQuery.isSuccess, companyQuery.data, hydrated]);
+
+  const hasSubCompany = subCompanies.some((subCompany) => subCompany.name.trim());
+  const canSubmit = Boolean(name.trim() && primaryContactEmail.trim() && hasSubCompany) && !isSubmitting;
+
+  if (isEdit && companyQuery.isSuccess && !companyQuery.data) return <Navigate to="/companies" replace />;
 
   const updateSubCompany = (localId: string, field: keyof Omit<SubCompanyDraft, "localId" | "id">, value: string) => {
     setSubCompanies((current) =>
@@ -70,7 +85,7 @@ export function CompanyFormPage() {
     setSubCompanies((current) => current.filter((subCompany) => subCompany.localId !== localId));
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
 
@@ -81,9 +96,31 @@ export function CompanyFormPage() {
       subCompanies: subCompanies.map(({ localId, ...subCompany }) => subCompany),
     };
 
-    const company = isEdit && companyId ? updateCompany(companyId, payload) : createCompany(payload);
-    navigate(company ? "/companies" : "/companies", { replace: true });
+    setError("");
+    setIsSubmitting(true);
+    try {
+      if (isEdit && companyId) {
+        await updateCompany(companyId, payload);
+      } else {
+        await createCompany(payload);
+      }
+      navigate("/companies", { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isEdit && companyQuery.isLoading) {
+    return (
+      <main className="modal-route-page">
+        <section className="company-form-modal">
+          <p className="data-state">Loading company…</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="modal-route-page">
@@ -142,9 +179,11 @@ export function CompanyFormPage() {
             ))}
           </div>
 
+          {error ? <p className="form-error">{error}</p> : null}
+
           <div className="modal-footer-actions">
             <Button type="button" onClick={() => navigate("/companies")}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={!canSubmit}>{isEdit ? "Save changes" : "Create company"}</Button>
+            <Button type="submit" variant="primary" disabled={!canSubmit}>{isSubmitting ? "Saving..." : isEdit ? "Save changes" : "Create company"}</Button>
           </div>
         </form>
       </section>

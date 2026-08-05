@@ -1,7 +1,7 @@
 import type { Role, Status } from "../types";
 
-export type TaskStatus = Extract<Status, "open" | "progress" | "overdue" | "closed"> | "resolved";
-export type TaskPriority = "High" | "Medium" | "Low";
+export type TaskStatus = Extract<Status, "open" | "progress" | "overdue" | "closed" | "resolved" | "reopened">;
+export type TaskPriority = "Critical" | "High" | "Medium" | "Low";
 
 export type AuditTask = {
   id: string;

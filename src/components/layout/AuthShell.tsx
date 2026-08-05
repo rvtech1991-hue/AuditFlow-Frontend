@@ -22,12 +22,11 @@ const testimonials: Testimonial[] = [
 ];
 
 type AuthShellProps = {
-  browserUrl: string;
   children: ReactNode;
   copy?: Testimonial;
 };
 
-export function AuthShell({ browserUrl, children, copy }: AuthShellProps) {
+export function AuthShell({ children, copy }: AuthShellProps) {
   const [activeQuote, setActiveQuote] = useState(0);
   const testimonial = copy ?? testimonials[activeQuote];
 
@@ -42,12 +41,6 @@ export function AuthShell({ browserUrl, children, copy }: AuthShellProps) {
   return (
     <main className="auth-page">
       <section className="browser-chrome">
-        <div className="chrome-bar">
-          <span className="chrome-dot red" />
-          <span className="chrome-dot amber" />
-          <span className="chrome-dot green" />
-          <span className="chrome-url">{browserUrl}</span>
-        </div>
         <div className="signin-shell">
           <div className="signin-brand">
             <div className="brand auth-brand">
