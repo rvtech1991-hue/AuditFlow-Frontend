@@ -1370,7 +1370,7 @@ table.grid-table tr:hover td {
 
 .dashboard-two-col {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 0.8fr);
   gap: 14px;
 }
 
@@ -1418,6 +1418,12 @@ table.grid-table tr:hover td {
 
 .legend-row strong {
   color: var(--text);
+}
+
+.legend-row span:not(.legend-dot) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-card.is-clickable,
@@ -1684,6 +1690,50 @@ table.grid-table tr:hover td {
   margin-top: 3px;
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.table-company-cell {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-company-cell .table-subline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ellipsis-cell {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* This card sits beside the status-breakdown chart, so its available width is tighter than a
+ * full-width grid — table-layout:fixed + per-column widths + ellipsis on every text cell keeps
+ * five columns of real content (long task IDs, company/sub-company, assignee names) on one line
+ * each instead of the browser's default auto-layout squeezing individual columns into wraps. */
+.dashboard-week-table table.grid-table {
+  table-layout: fixed;
+}
+
+.dashboard-week-table th:nth-child(1), .dashboard-week-table td:nth-child(1) { width: 20%; }
+.dashboard-week-table th:nth-child(2), .dashboard-week-table td:nth-child(2) { width: 24%; }
+.dashboard-week-table th:nth-child(3), .dashboard-week-table td:nth-child(3) { width: 24%; }
+.dashboard-week-table th:nth-child(4), .dashboard-week-table td:nth-child(4) { width: 22%; }
+.dashboard-week-table th:nth-child(5), .dashboard-week-table td:nth-child(5) { width: 10%; }
+
+.dashboard-week-table .cell-person { min-width: 0; }
+.dashboard-week-table .cell-person > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pagination-footer {
@@ -2585,7 +2635,7 @@ table.grid-table tr:hover td {
 }
 
 .bulk-preview-table {
-  min-width: 1080px;
+  min-width: 1100px;
 }
 
 .bulk-preview-table input,
@@ -2602,8 +2652,37 @@ table.grid-table tr:hover td {
   font-size: 12px;
 }
 
+.bulk-preview-table thead tr {
+  background: #F7F8FC;
+}
+
+/* Overrides two rules from the generic .grid-table styles that don't fit this table's shape:
+ * (1) `th:has(+ th:last-child)` center-aligns whichever header sits right before the final
+ *     column, meant for tables ending in an actions column — here that's "Due date" (Reason is
+ *     last), which should stay left-aligned like every other header.
+ * (2) `td:has(> .badge)` vertical-centers any cell containing a badge, meant for compact
+ *     single-line rows — here rows are tall (stacked company/sub-company selects), so it pulls
+ *     the Status badge down away from the top-aligned cells beside it. The extra `.bulk-preview-
+ *     table.bulk-preview-table` repetition is a specificity bump, not a typo — needed to beat
+ *     the global rule's `th:has(...)`/`td:has(...)` which otherwise wins on element count. */
+.bulk-preview-content .bulk-preview-table.bulk-preview-table th {
+  padding: 11px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.bulk-preview-content .bulk-preview-table.bulk-preview-table td:has(> .badge) {
+  text-align: left;
+  vertical-align: top;
+}
+
+.bulk-preview-content .bulk-preview-table.bulk-preview-table td:has(> .badge) .badge {
+  min-width: 0;
+}
+
 .bulk-preview-table td {
   vertical-align: top;
+  padding: 12px 8px;
 }
 
 .bulk-preview-table td > select + select {
@@ -2611,10 +2690,61 @@ table.grid-table tr:hover td {
 }
 
 .bulk-reason {
-  max-width: 210px;
+  max-width: 180px;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.toast {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in .18s ease-out;
+}
+
+.toast > i:first-child { font-size: 18px; flex: 0 0 auto; }
+.toast > span { flex: 1; line-height: 1.4; }
+.toast > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  opacity: .65;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity .15s ease, background-color .15s ease;
+}
+.toast > button:hover { opacity: 1; background: rgba(0, 0, 0, .08); }
+
+.toast-success { background: var(--success-bg); color: var(--success); }
+.toast-error { background: var(--danger-bg); color: var(--danger); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 560px) {
+  .toast { left: 12px; right: 12px; top: 12px; max-width: none; }
 }
 
 .visually-hidden {
@@ -2773,7 +2903,7 @@ table.grid-table tr:hover td {
 
 .dashboard-two-col {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 0.8fr);
   gap: 14px;
 }
 
@@ -2821,6 +2951,12 @@ table.grid-table tr:hover td {
 
 .legend-row strong {
   color: var(--text);
+}
+
+.legend-row span:not(.legend-dot) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-card.is-clickable,
@@ -3306,21 +3442,24 @@ table.grid-table td:has(> .badge) .badge::before {
 
 /* ===== Mockup-aligned bulk import ===== */
 .bulk-upload-modal { width: 100%; max-width: 720px; align-self: flex-start; border: 1px solid rgba(18,22,43,.06); border-radius: 20px; padding: 26px 30px 24px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.bulk-upload-modal:has(.bulk-preview-content) { max-width: 1240px; }
 .bulk-step { display: flex; align-items: center; gap: 12px; }
 .bulk-step > span, .bulk-step-heading > span { display: grid; width: 26px; height: 26px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--accent-100); color: var(--accent-600); font-size: 12px; font-weight: 800; }
 .bulk-template-step { margin: 0 0 14px; border-radius: 12px; padding: 14px 16px; background: #f5f7fb; }
-.bulk-template-step > div { flex: 1; }
+.bulk-template-step > div, .bulk-step-heading > div { flex: 1; }
 .bulk-template-step strong, .bulk-step-heading strong { font-size: 12.5px; }
-.bulk-template-step p { margin: 2px 0 0; color: var(--text-muted); font-size: 11.5px; }
+.bulk-template-step p, .bulk-step-heading p { margin: 2px 0 0; color: var(--text-muted); font-size: 11.5px; }
 .bulk-step-heading { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; }
 .bulk-upload-dropzone { margin: 0 0 20px 38px; padding: 18px; }
 .bulk-preview-content { margin-left: 38px; }
 .bulk-preview-content .bulk-summary { margin-bottom: 12px; }
 .bulk-preview-content .bulk-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
-.bulk-preview-content .bulk-preview-table { min-width: 940px; }
+.bulk-preview-content .bulk-preview-table { min-width: 1100px; }
 .bulk-empty-note { margin: 0 0 20px 38px; border-radius: 9px; padding: 10px 12px; background: #f5f7fb; color: var(--text-muted); font-size: 11.5px; line-height: 1.5; }
 .bulk-upload-modal .modal-footer-actions { margin-top: 20px; }
 .task-create-modal .modal-close-button i { font-size: 15px; }
+
+@media (max-width: 1300px) { .modal-route-page:has(.bulk-preview-content) { padding: 30px 14px; } }
 
 @media (max-width: 560px) { .bulk-upload-modal { padding: 22px 18px; }.bulk-upload-dropzone, .bulk-preview-content, .bulk-empty-note { margin-left: 0; }.bulk-template-step { align-items: flex-start; flex-wrap: wrap; }.bulk-template-step .btn { margin-left: 38px; } }
 

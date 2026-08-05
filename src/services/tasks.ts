@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import { apiClient, ApiError, type PagedResult } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
 import { displayTaskStatus, mapTaskStatusEnum, mapTaskStatusToEnum } from "../lib/taskStatusMapping";
@@ -482,10 +483,41 @@ export async function deleteAttachment(taskId: string, attachmentId: string): Pr
 // not a raw stream, since /tasks/template returns ApiResponse<FileDownloadResponse>.
 // ---------------------------------------------------------------------------
 
+const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/** The backend only serves the template as CSV, but users overwhelmingly work in Excel — so
+ * the CSV response is converted to a real .xlsx workbook client-side before download. If the
+ * backend ever starts serving something other than CSV, the original file is returned as-is. */
 export async function downloadTaskTemplate(): Promise<{ fileName: string; contentType: string; blob: Blob }> {
   const data = await apiClient.get<{ content: string; fileName: string; contentType: string }>("/tasks/template");
   const bytes = Uint8Array.from(atob(data.content), (char) => char.charCodeAt(0));
-  return { fileName: data.fileName, contentType: data.contentType, blob: new Blob([bytes], { type: data.contentType }) };
+  if (!data.fileName.toLowerCase().endsWith(".csv")) {
+    return { fileName: data.fileName, contentType: data.contentType, blob: new Blob([bytes], { type: data.contentType }) };
+  }
+  const rawCsvText = new TextDecoder().decode(bytes);
+  // Strip the backend's "valid values for this tenant" reference block (each of those rows'
+  // title is prefixed "#") — the downloaded template should just be the header users fill in.
+  const [headerLine, ...dataLines] = rawCsvText.split(/\r\n|\n|\r/).filter((line) => line.trim().length > 0);
+  const csvText = [headerLine, ...dataLines.filter((line) => !parseCsvLine(line)[0]?.trim().startsWith("#"))].join("\n");
+  const workbook = XLSX.read(csvText, { type: "string" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  // Parsing CSV text auto-detects "2026-08-20"-style example values as bare numeric serials
+  // with no date format attached — without this, they'd open in Excel as e.g. "46254" instead
+  // of a date.
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+  for (const address of Object.keys(sheet)) {
+    if (address.startsWith("!")) continue;
+    const cell = sheet[address];
+    if (cell?.t === "n" && !cell.z && typeof cell.w === "string" && isoDatePattern.test(cell.w)) {
+      cell.z = "yyyy-mm-dd";
+    }
+  }
+  const xlsxBytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
+  return {
+    fileName: data.fileName.replace(/\.csv$/i, ".xlsx"),
+    contentType: XLSX_CONTENT_TYPE,
+    blob: new Blob([xlsxBytes], { type: XLSX_CONTENT_TYPE }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -527,6 +559,33 @@ export async function getBulkReferenceData(): Promise<BulkReferenceData> {
   return data;
 }
 
+export function isExcelFile(file: File): boolean {
+  return /\.xlsx?$/i.test(file.name);
+}
+
+/** Backend's bulk parser only understands CSV, so an uploaded Excel workbook is converted
+ * client-side (first sheet only) before it ever reaches validate/import. Date cells carry a
+ * cached display format (e.g. "m/d/yy") baked in by Excel — sheet_to_csv's `dateNF` option is
+ * ignored whenever that cache is already set, so each date cell's format/cache is cleared and
+ * pinned to ISO (yyyy-mm-dd) before conversion. Without this, dates round-trip as "8/15/26"
+ * instead of "2026-08-15", which is what was breaking the <input type="date"> preview and the
+ * import call. */
+export async function convertExcelFileToCsv(file: File): Promise<File> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  for (const address of Object.keys(sheet)) {
+    if (address.startsWith("!")) continue;
+    const cell = sheet[address];
+    if (cell?.t === "d") {
+      cell.z = "yyyy-mm-dd";
+      delete cell.w;
+    }
+  }
+  const csv = XLSX.utils.sheet_to_csv(sheet, { dateNF: "yyyy-mm-dd" });
+  return new File([csv], file.name.replace(/\.xlsx?$/i, ".csv"), { type: "text/csv" });
+}
+
 function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let current = "";
@@ -558,23 +617,29 @@ function parseCsvLine(line: string): string[] {
 }
 
 /** Row 1 is the header (skipped) — matches BulkUploadTasksCommandHandler's row numbering,
- * where data rows are numbered starting from 2. */
+ * where data rows are numbered starting from 2. The downloaded template appends a "valid
+ * values for this tenant" reference block below the header, with each row's title prefixed
+ * "#" and a note to delete it before uploading — rows still there when a user uploads are
+ * skipped rather than surfaced as bogus/invalid tasks. */
 export function parseTaskCsv(text: string): BulkRowInput[] {
   const lines = text.split(/\r\n|\n|\r/).filter((line) => line.trim().length > 0);
-  return lines.slice(1).map((line, index) => {
-    const fields = parseCsvLine(line);
-    const field = (i: number) => (fields[i] ?? "").trim();
-    return {
-      rowNumber: index + 2,
-      title: field(0),
-      description: field(1),
-      company: field(2),
-      subCompany: field(3),
-      assigneeEmail: field(4),
-      priority: (field(5) as TaskPriority) || "",
-      dueDate: field(6),
-    };
-  });
+  return lines
+    .slice(1)
+    .map((line, index) => {
+      const fields = parseCsvLine(line);
+      const field = (i: number) => (fields[i] ?? "").trim();
+      return {
+        rowNumber: index + 2,
+        title: field(0),
+        description: field(1),
+        company: field(2),
+        subCompany: field(3),
+        assigneeEmail: field(4),
+        priority: (field(5) as TaskPriority) || "",
+        dueDate: field(6),
+      };
+    })
+    .filter((row) => !row.title.startsWith("#"));
 }
 
 /** Client-side re-check for a row after inline editing — there's no per-row re-validate

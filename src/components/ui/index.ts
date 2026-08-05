@@ -7,5 +7,6 @@ export * from "./FormField";
 export * from "./Modal";
 export * from "./RowActionMenu";
 export * from "./Table";
+export * from "./Toast";
 export * from "./Toggle";
 export * from "./TrendChart";

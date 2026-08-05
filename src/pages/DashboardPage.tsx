@@ -126,16 +126,19 @@ function StandardDashboard() {
               Filtered: {statusFilterLabel} <i className="ti ti-x" />
             </button>
           ) : null}
-          <Table<DashboardTask>
-            rows={visibleWeeklyTasks}
-            emptyState={statusFilterLabel ? `No ${statusFilterLabel.toLowerCase()} tasks this week.` : "No tasks this week."}
-            columns={[
-              { key: "id", header: "Task ID", render: (task) => <button className="link-button" type="button" onClick={() => navigate(`/tasks/${task.id}`)}>{task.taskNumber}</button> },
-              { key: "title", header: "Title" },
-              { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
-              { key: "status", header: "Status", render: (task) => <Badge status={task.status} /> },
-            ]}
-          />
+          <div className="dashboard-week-table">
+            <Table<DashboardTask>
+              rows={visibleWeeklyTasks}
+              emptyState={statusFilterLabel ? `No ${statusFilterLabel.toLowerCase()} tasks this week.` : "No tasks this week."}
+              columns={[
+                { key: "id", header: "Task ID", render: (task) => <button className="link-button ellipsis-cell" type="button" onClick={() => navigate(`/tasks/${task.id}`)}>{task.taskNumber}</button> },
+                { key: "title", header: "Title", render: (task) => <span className="ellipsis-cell">{task.title}</span> },
+                { key: "company", header: "Company", render: (task) => <span className="table-company-cell">{task.company}<small className="table-subline">{task.subCompany}</small></span> },
+                { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
+                { key: "status", header: "Status", render: (task) => <Badge status={task.status} /> },
+              ]}
+            />
+          </div>
           <button className="view-all-link" type="button" onClick={() => navigate("/tasks")}>View all →</button>
         </Card>
 

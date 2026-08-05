@@ -61,7 +61,6 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   // against the display status instead (see the statusOptions comment above).
   const fetchedRows = tasksQuery.data?.items ?? [];
   const rows = status === "overdue" ? fetchedRows.filter((task) => task.status === "overdue") : fetchedRows;
-  const showCompanyColumn = mode === "all";
   const title = mode === "week" ? "Tasks" : "All tasks";
   const subtitle =
     mode === "week"
@@ -127,7 +126,7 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
             columns={[
               { key: "id", header: "Task ID", render: (task) => <span className="link-button">{task.taskNumber}</span> },
               { key: "title", header: "Description", render: (task) => <span className="task-title-button">{task.title}{task.description ? <small className="table-subline">{task.description}</small> : null}</span> },
-              ...(showCompanyColumn ? [{ key: "company", header: "Company", render: (task: TaskEntry) => <span>{task.company}<small className="table-subline">{task.subCompany}</small></span> }] : []),
+              { key: "company", header: "Company", render: (task) => <span>{task.company}<small className="table-subline">{task.subCompany}</small></span> },
               { key: "createdOn", header: "Created on", render: (task) => formatDate(task.createdOn) },
               { key: "dueDate", header: "Due date", render: (task) => formatDate(task.dueDate) },
               ...(mode === "week" ? [{ key: "createdBy", header: "Created by" }] : []),

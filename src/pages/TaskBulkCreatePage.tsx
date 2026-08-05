@@ -1,15 +1,17 @@
 import { ChangeEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button } from "../components/ui";
+import { Badge, Button, Toast, type ToastState } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
 import { createMockTask, taskDirectory, type TaskPriority } from "../mock-data/tasks";
 import {
+  convertExcelFileToCsv,
   downloadTaskTemplate,
   getBulkReferenceData,
   importBulkTasks,
+  isExcelFile,
   parseTaskCsv,
   validateBulkFile,
   validateBulkRow,
@@ -107,7 +109,7 @@ function MockBulkCreatePage() {
         </div>
         <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>Pre-filled with your companies, sub-companies, and active users for validation.</p></div><Button size="small" onClick={downloadMockTemplate}><i className="ti ti-download" />Download .csv</Button></div>
         <div className="bulk-step-heading"><span>2</span><strong>Upload your filled file</strong></div>
-        <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv" onChange={simulateUpload} /><i className="ti ti-cloud-upload" /><p>{fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV file here or click to upload"}</p></label>
+        <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv,.xlsx,.xls" onChange={simulateUpload} /><i className="ti ti-cloud-upload" /><p>{fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV or Excel file here or click to upload"}</p></label>
         <div className="bulk-step-heading"><span>3</span><strong>Review before import</strong></div>
         {rows.length || importedCount ? (
           <div className="bulk-preview-content">
@@ -182,6 +184,7 @@ function LiveBulkCreatePage() {
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
 
   const referenceQuery = useQuery({ queryKey: ["tasks", "bulk-reference"], queryFn: getBulkReferenceData });
   const reference: BulkReferenceData = referenceQuery.data ?? { companies: [], subCompanies: [], assignees: [] };
@@ -198,16 +201,22 @@ function LiveBulkCreatePage() {
     setIsUploading(true);
     setFileName(file.name);
     try {
-      const [text, outcomes] = await Promise.all([file.text(), validateBulkFile(file)]);
+      const csvFile = isExcelFile(file) ? await convertExcelFileToCsv(file) : file;
+      const [text, outcomes] = await Promise.all([csvFile.text(), validateBulkFile(csvFile)]);
       const parsed = parseTaskCsv(text);
       const outcomeByRow = new Map(outcomes.map((o) => [o.rowNumber, o]));
-      setRows(parsed.map((row) => {
+      const validated = parsed.map((row) => {
         const outcome = outcomeByRow.get(row.rowNumber);
         return outcome ? { ...row, valid: outcome.valid, reason: outcome.reason } : { ...row, ...validateBulkRow(row, reference) };
-      }));
+      });
+      setRows(validated);
       setImportedCount(0);
+      const validCount = validated.filter((row) => row.valid).length;
+      setToast({ kind: "success", message: `${file.name} uploaded — ${validCount} of ${validated.length} row(s) are valid.` });
     } catch (err) {
-      setUploadError(err instanceof ApiError ? err.detail : "Couldn't validate that file.");
+      const message = err instanceof ApiError ? err.detail : "Couldn't validate that file.";
+      setUploadError(message);
+      setToast({ kind: "error", message: `Upload failed: ${message}` });
       setRows([]);
     } finally {
       setIsUploading(false);
@@ -231,8 +240,11 @@ function LiveBulkCreatePage() {
       const result = await importBulkTasks(validRows);
       setImportedCount((count) => count + result.importedCount);
       setRows(invalidRows);
+      setToast({ kind: "success", message: `${result.importedCount} task(s) imported successfully.` });
     } catch (err) {
-      setUploadError(err instanceof ApiError ? err.detail : "Couldn't import those rows.");
+      const message = err instanceof ApiError ? err.detail : "Couldn't import those rows.";
+      setUploadError(message);
+      setToast({ kind: "error", message: `Import failed: ${message}` });
     } finally {
       setIsImporting(false);
     }
@@ -259,14 +271,15 @@ function LiveBulkCreatePage() {
 
   return (
     <main className="modal-route-page">
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
       <section className="bulk-upload-modal" aria-labelledby="bulk-upload-title">
         <div className="modal-route-heading">
           <div><h2 id="bulk-upload-title">Bulk create tasks</h2><p>Use this for audits that surface many findings at once — for example, the same checklist item across many sub-companies.</p></div>
           <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/tasks")}><i className="ti ti-x" /></button>
         </div>
-        <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>CSV columns: title, description, company, subCompany, assigneeEmail, priority, dueDate.</p></div><Button size="small" onClick={handleDownloadTemplate}><i className="ti ti-download" />Download .csv</Button></div>
-        <div className="bulk-step-heading"><span>2</span><strong>Upload your filled file</strong></div>
-        <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv" onChange={handleUpload} disabled={isUploading} /><i className="ti ti-cloud-upload" /><p>{isUploading ? "Validating..." : fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV file here or click to upload"}</p></label>
+        <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>Excel file with columns: title, description, company, subCompany, assigneeEmail, priority, dueDate.</p></div><Button size="small" onClick={handleDownloadTemplate}><i className="ti ti-download" />Download .xlsx</Button></div>
+        <div className="bulk-step-heading"><span>2</span><div><strong>Upload your filled file</strong><p>CSV or Excel (.xlsx/.xls) accepted.</p></div></div>
+        <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv,.xlsx,.xls" onChange={handleUpload} disabled={isUploading} /><i className="ti ti-cloud-upload" /><p>{isUploading ? "Validating..." : fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV or Excel file here or click to upload"}</p></label>
         {uploadError ? <p className="form-error">{uploadError}</p> : null}
         <div className="bulk-step-heading"><span>3</span><strong>Review before import</strong></div>
         {rows.length || importedCount ? (
