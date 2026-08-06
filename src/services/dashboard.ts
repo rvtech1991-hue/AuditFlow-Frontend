@@ -2,6 +2,7 @@ import { apiClient, type PagedResult } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
 import { displayTaskStatus, mapTaskStatusEnum } from "../lib/taskStatusMapping";
 import { companies, dashboardTasks, workload, type DashboardTask } from "../mock-data/dashboard";
+import { getCompaniesForRole } from "./companies";
 import type { Role } from "../types";
 
 export type DashboardSummary = {
@@ -156,6 +157,7 @@ export type ExecutiveFilters = {
   companyName?: string;
   subCompanyId?: string;
   dateRange?: string;
+  status?: string;
 };
 
 export type ExecutiveKpis = { totalTasks: number; closureRate: number; avgTimeToClose: number; atRiskCount: number };
@@ -163,6 +165,33 @@ export type TrendPoint = { period: string; created: number; closed: number };
 export type StatusMixCounts = { open: number; inProgress: number; resolved: number; closed: number; reopened: number };
 export type CompanyHealth = { id: string; name: string; taskCount: number; overdueCount: number; closureRate: number };
 export type TeamWorkloadEntry = { id: string; name: string; count: number };
+
+export type DashboardCompanyOption = { id: string; name: string };
+export type DashboardSubCompanyOption = { id: string; name: string; companyId: string };
+export type DashboardCompanyScope = { companies: DashboardCompanyOption[]; subCompanies: DashboardSubCompanyOption[] };
+
+// The executive dashboard's Company filter needs the list of companies the caller actually has
+// *task data* access to — not `/companies` (services/companies.ts), which for an Auditor
+// deliberately lists every company in the tenant (so they can browse/manage ones they aren't
+// yet individually mapped to via UserCompanyMapping). Picking one of those un-mapped companies
+// here used to silently fall back to the caller's real scope instead of the selection, which
+// looked like "the filter does nothing." `/tasks/filter-options` is already scoped correctly
+// (same access boundary the task grid's own company filter uses), so this reuses it instead of
+// duplicating that scoping logic.
+export async function getDashboardCompanyScope(role: Role): Promise<DashboardCompanyScope> {
+  if (API_MODE === "mock") {
+    const entries = await getCompaniesForRole(role);
+    return {
+      companies: entries.map((c) => ({ id: c.id, name: c.name })),
+      subCompanies: entries.flatMap((c) => c.subCompanies.map((sc) => ({ id: sc.id, name: sc.name, companyId: c.id }))),
+    };
+  }
+  const data = await apiClient.get<{
+    companies: Array<{ id: string; name: string }>;
+    subCompanies: Array<{ id: string; name: string; companyId: string }>;
+  }>("/tasks/filter-options");
+  return { companies: data.companies, subCompanies: data.subCompanies };
+}
 
 function scopedMockTasks(role: Role, companyName?: string): DashboardTask[] {
   if (companyName) return dashboardTasks.filter((t) => t.company === companyName);
@@ -175,26 +204,33 @@ function scopedMockCompanies(role: Role, companyName?: string) {
   return role === "Company admin" ? companies.slice(0, 1) : companies;
 }
 
+// "all"/undefined means no filter; every other value narrows the scoped task set to that one
+// status before the caller derives counts/rates from it.
+function applyMockStatusFilter(tasks: DashboardTask[], status?: string): DashboardTask[] {
+  if (!status || status === "all") return tasks;
+  return tasks.filter((t) => t.status === status);
+}
+
 export async function getExecutiveKpis(role: Role, filters: ExecutiveFilters): Promise<ExecutiveKpis> {
   if (API_MODE === "mock") {
-    const scoped = scopedMockTasks(role, filters.companyName);
+    const scoped = applyMockStatusFilter(scopedMockTasks(role, filters.companyName), filters.status);
     const closed = scoped.filter((t) => t.status === "closed").length;
     const totalTasks = scoped.length;
     const closureRate = totalTasks ? Math.round((closed / totalTasks) * 100) : 0;
     const atRiskCount = scoped.filter((t) => t.status === "overdue").length;
     return { totalTasks, closureRate, avgTimeToClose: 5.8, atRiskCount };
   }
-  return apiClient.get<ExecutiveKpis>("/dashboard/executive/kpis", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange });
+  return apiClient.get<ExecutiveKpis>("/dashboard/executive/kpis", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
 }
 
 export async function getExecutiveTrend(role: Role, filters: ExecutiveFilters): Promise<TrendPoint[]> {
   if (API_MODE === "mock") return [];
-  return apiClient.get<TrendPoint[]>("/dashboard/executive/trend", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange });
+  return apiClient.get<TrendPoint[]>("/dashboard/executive/trend", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
 }
 
 export async function getExecutiveStatusMix(role: Role, filters: ExecutiveFilters): Promise<StatusMixCounts> {
   if (API_MODE === "mock") {
-    const scoped = scopedMockTasks(role, filters.companyName);
+    const scoped = applyMockStatusFilter(scopedMockTasks(role, filters.companyName), filters.status);
     return scoped.reduce(
       (acc, t) => {
         // The mock fixture's "overdue" is a pseudo-status (SS7) with no distinct real-status
@@ -209,7 +245,7 @@ export async function getExecutiveStatusMix(role: Role, filters: ExecutiveFilter
       { open: 0, inProgress: 0, resolved: 0, closed: 0, reopened: 0 },
     );
   }
-  const data = await apiClient.get<{ statusCounts: Record<string, number> }>("/dashboard/executive/status-mix", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange });
+  const data = await apiClient.get<{ statusCounts: Record<string, number> }>("/dashboard/executive/status-mix", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
   const counts = data.statusCounts;
   return { open: counts.Open ?? 0, inProgress: counts.InProgress ?? 0, resolved: counts.Resolved ?? 0, closed: counts.Closed ?? 0, reopened: counts.Reopened ?? 0 };
 }

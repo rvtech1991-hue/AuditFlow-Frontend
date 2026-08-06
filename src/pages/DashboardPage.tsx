@@ -6,6 +6,7 @@ import type { DashboardTask } from "../mock-data/dashboard";
 import { useRole } from "../lib/RoleContext";
 import {
   getAnnouncements,
+  getDashboardCompanyScope,
   getExecutiveCompanyHealth,
   getExecutiveKpis,
   getExecutiveRiskTasks,
@@ -17,11 +18,18 @@ import {
   getWeeklyTasks,
   type ExecutiveFilters,
 } from "../services/dashboard";
-import { getCompaniesForRole, getCompanyById } from "../services/companies";
 import { ApiError } from "../lib/apiClient";
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
+}
+
+// `dueInDays` rounds toward zero for anything overdue by less than a full 24h, so a task overdue
+// by a few hours reads as "0d overdue" — technically correct math, but "0" implies nothing's
+// wrong on a red at-risk badge. Below a full day, say so in words instead of a misleading count.
+function formatOverdueLabel(dueInDays: number) {
+  const days = Math.abs(dueInDays);
+  return days === 0 ? "Overdue today" : `${days}d overdue`;
 }
 
 function StatCard({ label, value, delta, tone = "default", progress, onClick, active }: { label: string; value: number | string; delta?: string; tone?: "default" | "hero" | "danger"; progress?: number; onClick?: () => void; active?: boolean }) {
@@ -155,8 +163,12 @@ function ExecutiveDashboard() {
   const { role } = useRole();
   const isCompanyAdmin = role === "Company admin";
 
-  const companiesQuery = useQuery({ queryKey: ["companies", role], queryFn: () => getCompaniesForRole(role) });
-  const scopedCompanies = isCompanyAdmin ? (companiesQuery.data ?? []).slice(0, 1) : companiesQuery.data ?? [];
+  // Scoped to companies the caller actually has task-data access to (their UserCompanyMapping
+  // rows) — not the company-management listing, which for an Auditor deliberately shows every
+  // company in the tenant. See getDashboardCompanyScope for why those are different lists.
+  const companiesQuery = useQuery({ queryKey: ["dashboard-company-scope", role], queryFn: () => getDashboardCompanyScope(role) });
+  const allCompanies = companiesQuery.data?.companies ?? [];
+  const scopedCompanies = isCompanyAdmin ? allCompanies.slice(0, 1) : allCompanies;
 
   const [pending, setPending] = useState<ExecutiveFilterState>(defaultFilterState);
   const [applied, setApplied] = useState<ExecutiveFilterState>(defaultFilterState);
@@ -169,15 +181,21 @@ function ExecutiveDashboard() {
     }
   }, [isCompanyAdmin, scopedCompanies, pending.companyId]);
 
-  const selectedCompany = (companiesQuery.data ?? []).find((c) => c.id === pending.companyId);
-  const companyDetailQuery = useQuery({ queryKey: ["company", pending.companyId], queryFn: () => getCompanyById(pending.companyId), enabled: Boolean(pending.companyId) });
-  const subCompanyOptions = companyDetailQuery.data?.subCompanies ?? [];
+  const selectedCompany = allCompanies.find((c) => c.id === pending.companyId);
+  const subCompanyOptions = (companiesQuery.data?.subCompanies ?? []).filter((sc) => sc.companyId === pending.companyId);
 
-  const appliedCompany = (companiesQuery.data ?? []).find((c) => c.id === applied.companyId);
-  // The "Status" filter has no server-side equivalent on any of the six executive endpoints
-  // (verified against DashboardQueries.cs) — kept in the UI for now, not sent anywhere.
-  const filters: ExecutiveFilters = { companyId: applied.companyId || undefined, companyName: appliedCompany?.name, subCompanyId: applied.subCompanyId || undefined, dateRange: applied.dateRange };
-  const filterKey = [role, filters.companyId, filters.subCompanyId, filters.dateRange] as const;
+  const appliedCompany = allCompanies.find((c) => c.id === applied.companyId);
+  // Status now has a real server-side equivalent on the KPIs/trend/status-mix endpoints (see
+  // ApplyStatusFilter in DashboardRepository) — Company health/risk-tasks/team-workload
+  // deliberately stay unfiltered by it, matching how they already ignore company/date scope.
+  const filters: ExecutiveFilters = {
+    companyId: applied.companyId || undefined,
+    companyName: appliedCompany?.name,
+    subCompanyId: applied.subCompanyId || undefined,
+    dateRange: applied.dateRange,
+    status: applied.status !== "all" ? applied.status : undefined,
+  };
+  const filterKey = [role, filters.companyId, filters.subCompanyId, filters.dateRange, filters.status] as const;
 
   const kpisQuery = useQuery({ queryKey: ["exec-kpis", ...filterKey], queryFn: () => getExecutiveKpis(role, filters) });
   const trendQuery = useQuery({ queryKey: ["exec-trend", ...filterKey], queryFn: () => getExecutiveTrend(role, filters) });
@@ -230,7 +248,7 @@ function ExecutiveDashboard() {
               onChange={(event) => { const value = event.currentTarget.value; setPending((p) => ({ ...p, companyId: value, subCompanyId: "" })); }}
             >
               {!isCompanyAdmin ? <option value="">All companies</option> : null}
-              {(companiesQuery.data ?? []).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              {allCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </label>
           <label>
@@ -295,7 +313,7 @@ function ExecutiveDashboard() {
             {riskTasks.map((task) => (
               <li key={task.id}>
                 <span><strong>{task.taskNumber}</strong>{task.title}</span>
-                <Badge status="overdue" label={`${Math.abs(task.dueInDays)}d overdue`} />
+                <Badge status="overdue" label={formatOverdueLabel(task.dueInDays)} />
               </li>
             ))}
           </ol>

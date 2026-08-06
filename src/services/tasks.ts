@@ -730,7 +730,11 @@ export async function importBulkTasks(rows: BulkRowInput[]): Promise<{ importedC
       subCompanyName: row.subCompany || undefined,
       assigneeEmail: row.assigneeEmail,
       priority: mapTaskPriorityToEnum(row.priority as TaskPriority),
-      dueDate: row.dueDate || undefined,
+      // The normal "Create task" form sends end-of-day (23:59:59) so a same-day due date stays
+      // valid all day — this path was sending the bare date (midnight) instead, so a bulk-
+      // imported task became overdue up to a full day earlier than an identically-dated task
+      // created through the form.
+      dueDate: row.dueDate ? toEndOfDayIso(row.dueDate) : undefined,
     })),
   });
   return data;
