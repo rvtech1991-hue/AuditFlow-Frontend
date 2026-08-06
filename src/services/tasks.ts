@@ -212,9 +212,13 @@ function mapTaskDetail(raw: RawTaskDetail): TaskDetail {
     dueDate: raw.dueDate ? raw.dueDate.slice(0, 10) : "",
     priority: mapTaskPriorityEnum(raw.priority),
     status: displayTaskStatus(status, raw.isOverdue) as TaskStatus,
-    comments: raw.comments.map(mapComment),
-    attachments: raw.attachments.map(mapAttachment),
-    timeline: raw.timeline.map(mapTimelineItem),
+    // The backend serializes an empty collection as null rather than [] in some cases (e.g. a
+    // task with no attachments/timeline entries yet) — guard so that doesn't throw a raw
+    // TypeError out of this mapper, which the details page then shows as a generic "couldn't
+    // load" error instead of the real problem.
+    comments: (raw.comments ?? []).map(mapComment),
+    attachments: (raw.attachments ?? []).map(mapAttachment),
+    timeline: (raw.timeline ?? []).map(mapTimelineItem),
   };
 }
 
@@ -336,20 +340,22 @@ export async function searchTasks(role: Role, userEmail: string, query: string):
 // Detail, create, edit, delete, assign, status
 // ---------------------------------------------------------------------------
 
-export async function getTaskDetail(taskId: string, role: Role, userEmail: string): Promise<TaskDetail | undefined> {
+export async function getTaskDetail(taskId: string, role: Role, userEmail: string): Promise<TaskDetail | null> {
   if (API_MODE === "mock") {
     // Mock data has no real access control — the live backend enforces tenant/company/assignee
     // scoping server-side (SS6), so this replicates it here to keep mock mode from letting a
     // role view a task outside its scope just by navigating to the URL directly.
     const task = mockGetTaskById(taskId);
-    if (!task || !getRoleScopedTasks(role, userEmail).some((item) => item.id === taskId)) return undefined;
+    // TanStack Query treats a queryFn resolving to `undefined` as a bug and turns it into a
+    // synthetic error ("Query data cannot be undefined") — `null` is the valid "no data" value.
+    if (!task || !getRoleScopedTasks(role, userEmail).some((item) => item.id === taskId)) return null;
     return taskDetailFromMock(task);
   }
   try {
     const data = await apiClient.get<RawTaskDetail>(`/tasks/${taskId}`);
     return mapTaskDetail(data);
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404) return undefined;
+    if (err instanceof ApiError && err.status === 404) return null;
     throw err;
   }
 }

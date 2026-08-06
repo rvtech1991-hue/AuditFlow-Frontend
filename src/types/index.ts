@@ -4,7 +4,7 @@ export type Role = "Platform admin" | "Auditor" | "Company admin" | "Employee";
 // reopened-with-reason respectively) — don't collapse them into "progress"/"closed" when mapping
 // live task data (BACKEND_INTEGRATION_GUIDE SS7). "overdue" isn't a backend status at all; it's a
 // derived UI badge computed from task.isOverdue, given display precedence over the real status.
-export type Status = "open" | "progress" | "resolved" | "reopened" | "overdue" | "closed" | "active" | "invited";
+export type Status = "open" | "progress" | "resolved" | "reopened" | "overdue" | "closed" | "active" | "invited" | "deactivated";
 
 export type RouteMeta = {
   path: string;

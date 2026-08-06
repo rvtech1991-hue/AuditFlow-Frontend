@@ -1,7 +1,7 @@
 import type { Status } from "../types";
 
-/** The subset of Status that can apply to a task (excludes the user-status values "active"/"invited"). */
-export type TaskStatus = Exclude<Status, "active" | "invited">;
+/** The subset of Status that can apply to a task (excludes the user-status values "active"/"invited"/"deactivated"). */
+export type TaskStatus = Exclude<Status, "active" | "invited" | "deactivated">;
 
 // AuditTaskStatus enum values, confirmed against the backend source
 // (src/AuditFlow.Domain/Common/Enums.cs) — matches BACKEND_INTEGRATION_GUIDE SS7.

@@ -19,7 +19,7 @@ function initials(name: string) {
 
 function statusBadge(status: AuditUserStatus) {
   if (status === "Invited") return <Badge status="invited" label="Invited" />;
-  if (status === "Deactivated") return <Badge status="closed" label="Deactivated" />;
+  if (status === "Deactivated") return <Badge status="deactivated" label="Deactivated" />;
   return <Badge status="active" label="Active" />;
 }
 

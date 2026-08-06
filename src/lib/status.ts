@@ -9,6 +9,7 @@ export const statusLabels: Record<Status, string> = {
   closed: "Closed",
   active: "Active",
   invited: "Invited",
+  deactivated: "Deactivated",
 };
 
 export const statusStyles: Record<Status, { color: string; background: string }> = {
@@ -20,4 +21,5 @@ export const statusStyles: Record<Status, { color: string; background: string }>
   closed: { color: "var(--success)", background: "var(--success-bg)" },
   active: { color: "var(--success)", background: "var(--success-bg)" },
   invited: { color: "var(--accent-600)", background: "var(--accent-100)" },
+  deactivated: { color: "var(--text-muted)", background: "#EEF0F5" },
 };

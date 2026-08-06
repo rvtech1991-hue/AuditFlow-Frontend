@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Card, CellPerson } from "../components/ui";
+import { Badge, Button, Card, CellPerson, Toast, type ToastState } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from "../lib/config";
@@ -264,28 +264,46 @@ function DocumentsTab({ task, canUpload }: { task: TaskDetail; canUpload: boolea
 function TimelineTab({ task }: { task: TaskDetail }) {
   const entries = task.timeline;
 
+  const steps = statusTrail.map((status) => {
+    const entry = entries.find((item) => item.toStatus === status);
+    // "Open" is the task's starting status, not something reached via a logged
+    // transition — no timeline entry is ever recorded for it, so treat it as always
+    // satisfied from creation instead of leaving it stuck on "Pending".
+    const isImplicitOpen = status === "open" && !entry;
+    const complete = Boolean(entry) || isImplicitOpen;
+    return { status, entry, isImplicitOpen, complete };
+  });
+  // The trail is a strict sequence (open -> progress -> resolved -> closed) — the "current"
+  // stage is the furthest one actually reached, so it's the highest index still marked complete.
+  const currentIndex = steps.reduce((latest, step, index) => (step.complete ? index : latest), 0);
+
   return (
     <Card>
       <div className="status-trail">
-        {statusTrail.map((status) => {
-          const entry = entries.find((item) => item.toStatus === status);
-          // "Open" is the task's starting status, not something reached via a logged
-          // transition — no timeline entry is ever recorded for it, so treat it as always
-          // satisfied from creation instead of leaving it stuck on "Pending".
-          const isImplicitOpen = status === "open" && !entry;
-          const complete = Boolean(entry) || isImplicitOpen;
+        {steps.map((step, index) => {
+          // "Closed" is a terminal state — nothing comes after it, so even when it's the
+          // furthest stage reached it should read as done (green check), not as an
+          // actively-in-progress stage (blue pulse), which only makes sense for a stage
+          // something is still moving through (open/in progress/resolved).
+          const isPast = step.complete && (index < currentIndex || step.status === "closed");
+          const isCurrent = step.complete && index === currentIndex && step.status !== "closed";
+          const stepState = isPast ? "is-past" : isCurrent ? "is-current" : "is-upcoming";
           return (
-            <div key={status} className={`status-step ${complete ? "complete" : ""}`}>
-              <span aria-hidden="true" />
-              <strong>{statusLabel(status)}</strong>
-              <small>
-                {entry
-                  ? `${entry.actor} - ${formatDateTime(entry.createdAt)}`
-                  : isImplicitOpen
-                    ? `${task.createdBy} - ${formatDate(task.createdOn)}`
-                    : "Pending"}
-              </small>
-              {entry?.reason ? <p>{entry.reason}</p> : null}
+            <div key={step.status} className={`status-step ${stepState}`}>
+              <span className="status-step-dot" aria-hidden="true">
+                {isPast ? <i className="ti ti-check" /> : isCurrent ? <i className="ti ti-point-filled" /> : null}
+              </span>
+              <div className="status-step-body">
+                <strong>{statusLabel(step.status)}</strong>
+                <small>
+                  {step.entry
+                    ? `${step.entry.actor} - ${formatDateTime(step.entry.createdAt)}`
+                    : step.isImplicitOpen
+                      ? `${task.createdBy} - ${formatDate(task.createdOn)}`
+                      : "Pending"}
+                </small>
+                {step.entry?.reason ? <p>{step.entry.reason}</p> : null}
+              </div>
             </div>
           );
         })}
@@ -302,21 +320,34 @@ export function TaskDetailsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [reopenModalOpen, setReopenModalOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
+  const [toast, setToast] = useState<ToastState>(null);
 
   const taskQuery = useQuery({ queryKey: ["task", taskId], queryFn: () => getTaskDetail(taskId, role, user.email), enabled: Boolean(taskId) });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["task", taskId] });
   const saveFieldsMutation = useMutation({
     mutationFn: (fields: { title: string; description: string; priority: TaskPriority; dueDate: string }) => updateTask(taskId, fields),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      setToast({ kind: "success", message: "Changes saved successfully." });
+    },
+    onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't save changes." }),
   });
   const reassignMutation = useMutation({
     mutationFn: ({ assigneeId, assigneeName }: { assigneeId: string; assigneeName: string }) => assignTask(taskId, assigneeId, assigneeName),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      setToast({ kind: "success", message: "Task reassigned successfully." });
+    },
+    onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't reassign this task." }),
   });
   const statusMutation = useMutation({
     mutationFn: ({ status, reason }: { status: Exclude<TaskStatus, "overdue">; reason?: string }) => changeTaskStatus(taskId, status, user.name, reason),
-    onSuccess: invalidate,
+    onSuccess: (_data, variables) => {
+      invalidate();
+      setToast({ kind: "success", message: `Status updated to "${statusLabel(variables.status)}".` });
+    },
+    onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't update the status." }),
   });
 
   if (taskQuery.isLoading) {
@@ -348,12 +379,12 @@ export function TaskDetailsPage() {
 
   return (
     <div className="task-details-page">
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
       <div className="task-details-header">
         <div>
-          <button className="view-all-link" type="button" onClick={() => navigate("/tasks")}>Back to tasks</button>
+          <button className="task-back-link" type="button" onClick={() => navigate("/tasks")}><i className="ti ti-arrow-left" />Back to tasks</button>
           <div className="task-heading-line">
             <h2>{task.title}</h2>
-            <Badge status={task.status} />
           </div>
           <p>{task.taskNumber} - {task.company} / {task.subCompany}</p>
         </div>
@@ -362,14 +393,21 @@ export function TaskDetailsPage() {
             {task.status === "closed" ? (
               <Button variant="primary" onClick={() => setReopenModalOpen(true)}>Reopen</Button>
             ) : (
-              <Button variant="primary" onClick={closeTask}>Close task</Button>
+              <Button
+                variant="primary"
+                onClick={closeTask}
+                disabled={task.status !== "resolved"}
+                title={task.status !== "resolved" ? "Mark the task Resolved first — Closed requires auditor sign-off on a resolved task." : undefined}
+              >
+                Close task
+              </Button>
             )}
           </div>
         ) : null}
       </div>
 
       <Card className="task-intro-card">
-        <div className="task-intro-meta"><span>{task.taskNumber}</span><Badge status={task.status} /><span className="priority-pill">{task.priority} priority</span></div>
+        <div className="task-intro-meta"><span>{task.taskNumber}</span><span className="priority-pill">{task.priority} priority</span><Badge status={task.status} /></div>
         <p>{task.description}</p>
       </Card>
 

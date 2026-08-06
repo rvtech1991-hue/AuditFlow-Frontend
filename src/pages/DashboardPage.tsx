@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card, CellPerson, DonutChart, Table, TrendChart } from "../components/ui";
+import { Badge, Button, Card, CellPerson, DonutChart, Table, Tooltip, TrendChart } from "../components/ui";
 import type { DashboardTask } from "../mock-data/dashboard";
 import { useRole } from "../lib/RoleContext";
 import {
@@ -56,7 +56,6 @@ function Legend({ items }: { items: Array<{ label: string; value: number; color:
 function StandardDashboard() {
   const navigate = useNavigate();
   const [dismissedAnnouncementId, setDismissedAnnouncementId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<DashboardTask["status"] | null>(null);
 
   const summaryQuery = useQuery({ queryKey: ["dashboard", "summary"], queryFn: getSummary });
   const weeklyTasksQuery = useQuery({ queryKey: ["dashboard", "weekly-tasks"], queryFn: getWeeklyTasks });
@@ -86,17 +85,17 @@ function StandardDashboard() {
   const weeklyTasks = weeklyTasksQuery.data ?? [];
   const breakdown = statusBreakdownQuery.data;
   const announcement = announcementsQuery.data?.[0];
-  // Toggling the same status again clears the filter — click Open, click Open again, back to
-  // the full list — rather than needing a separate "clear" action for the common case.
-  const toggleStatusFilter = (status: DashboardTask["status"]) => setStatusFilter((current) => (current === status ? null : status));
-  const visibleWeeklyTasks = statusFilter ? weeklyTasks.filter((task) => task.status === statusFilter) : weeklyTasks;
-  const statusFilterLabel = statusFilter === "progress" ? "In progress" : statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : null;
+  // The stat cards and donut legend show system-wide counts (from /dashboard/summary and
+  // /dashboard/status-breakdown), not just the 5 rows in the "This week's tasks" preview below —
+  // so filtering navigates to the full Tasks grid (which already supports a ?status= deep link)
+  // rather than filtering the tiny preview table, where the matching rows usually aren't present.
+  const goToStatus = (status: DashboardTask["status"]) => navigate(`/tasks/all?status=${status}`);
   const donutItems = breakdown
     ? [
-        { label: "Open", value: breakdown.open, color: "var(--text-faint)", onClick: () => toggleStatusFilter("open"), active: statusFilter === "open" },
-        { label: "In progress", value: breakdown.inProgress, color: "var(--warning)", onClick: () => toggleStatusFilter("progress"), active: statusFilter === "progress" },
-        { label: "Overdue", value: breakdown.overdue, color: "var(--danger)", onClick: () => toggleStatusFilter("overdue"), active: statusFilter === "overdue" },
-        { label: "Closed", value: breakdown.closed, color: "var(--success)", onClick: () => toggleStatusFilter("closed"), active: statusFilter === "closed" },
+        { label: "Open", value: breakdown.open, color: "var(--text-faint)", onClick: () => goToStatus("open") },
+        { label: "In progress", value: breakdown.inProgress, color: "var(--warning)", onClick: () => goToStatus("progress") },
+        { label: "Overdue", value: breakdown.overdue, color: "var(--danger)", onClick: () => goToStatus("overdue") },
+        { label: "Closed", value: breakdown.closed, color: "var(--success)", onClick: () => goToStatus("closed") },
       ]
     : [];
 
@@ -113,29 +112,24 @@ function StandardDashboard() {
       ) : null}
 
       <div className="stat-grid">
-        <StatCard label="Overdue tasks" value={summary.overdueTasks} tone="hero" onClick={() => toggleStatusFilter("overdue")} active={statusFilter === "overdue"} />
-        <StatCard label="Open" value={summary.openTasks} onClick={() => toggleStatusFilter("open")} active={statusFilter === "open"} />
-        <StatCard label="In progress" value={summary.inProgressTasks} onClick={() => toggleStatusFilter("progress")} active={statusFilter === "progress"} />
-        <StatCard label="Closed this week" value={summary.completedThisWeek} onClick={() => toggleStatusFilter("closed")} active={statusFilter === "closed"} />
+        <StatCard label="Overdue tasks" value={summary.overdueTasks} tone="hero" onClick={() => goToStatus("overdue")} />
+        <StatCard label="Open" value={summary.openTasks} onClick={() => goToStatus("open")} />
+        <StatCard label="In progress" value={summary.inProgressTasks} onClick={() => goToStatus("progress")} />
+        <StatCard label="Closed this week" value={summary.completedThisWeek} onClick={() => goToStatus("closed")} />
       </div>
 
       <div className="dashboard-two-col">
-        <Card title={statusFilterLabel ? `This week's tasks — ${statusFilterLabel}` : "This week's tasks"}>
-          {statusFilterLabel ? (
-            <button className="chip active-chip dashboard-filter-chip" type="button" onClick={() => setStatusFilter(null)}>
-              Filtered: {statusFilterLabel} <i className="ti ti-x" />
-            </button>
-          ) : null}
+        <Card title="This week's tasks">
           <div className="dashboard-week-table">
             <Table<DashboardTask>
-              rows={visibleWeeklyTasks}
-              emptyState={statusFilterLabel ? `No ${statusFilterLabel.toLowerCase()} tasks this week.` : "No tasks this week."}
+              rows={weeklyTasks}
+              emptyState="No tasks this week."
               columns={[
-                { key: "id", header: "Task ID", render: (task) => <button className="link-button ellipsis-cell" type="button" onClick={() => navigate(`/tasks/${task.id}`)}>{task.taskNumber}</button> },
-                { key: "title", header: "Title", render: (task) => <span className="ellipsis-cell">{task.title}</span> },
-                { key: "company", header: "Company", render: (task) => <span className="table-company-cell">{task.company}<small className="table-subline">{task.subCompany}</small></span> },
-                { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
-                { key: "status", header: "Status", render: (task) => <Badge status={task.status} /> },
+                { key: "id", header: "Task ID", render: (task) => <button className="link-button nowrap-cell" type="button" onClick={() => navigate(`/tasks/${task.id}`)}>{task.taskNumber}</button> },
+                { key: "title", header: "Title", render: (task) => <Tooltip label={task.title}><span className="ellipsis-cell">{task.title}</span></Tooltip> },
+                { key: "company", header: "Company", render: (task) => <Tooltip label={`${task.company} — ${task.subCompany}`}><span className="table-company-cell">{task.company}<small className="table-subline">{task.subCompany}</small></span></Tooltip> },
+                { key: "assignee", header: "Assigned to", align: "left", render: (task) => <Tooltip label={task.assignee}><CellPerson initials={task.assigneeInitials} name={task.assignee} /></Tooltip> },
+                { key: "status", header: "Status", align: "left", render: (task) => <Badge status={task.status} /> },
               ]}
             />
           </div>

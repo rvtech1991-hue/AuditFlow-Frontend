@@ -480,16 +480,22 @@ table.grid-table tr:hover td {
 .badge {
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 10px;
+  line-height: 1;
+  padding: 5px 10px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  white-space: nowrap;
   gap: 5px;
 }
 
 .badge::before {
-  content: '';
+  /* Badge.tsx never applies the status modifier classes below (it colors badges via inline
+   * style instead), so this dot never gets a background — left as an invisible box it was
+   * still occupying layout space on one side only, pushing the label off-center. */
+  content: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -601,6 +607,20 @@ table.grid-table tr:hover td {
   box-shadow: 0 6px 14px rgba(59, 111, 237, .28);
 }
 
+.btn.outline {
+  background: var(--accent-100);
+  color: var(--accent-600);
+  border: 1px solid transparent;
+  transition: background .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.btn.outline:hover:not(:disabled) {
+  background: var(--accent-600);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(59, 111, 237, .28);
+  transform: translateY(-1px);
+}
+
 .btn.sm {
   padding: 7px 13px;
   font-size: 12px;
@@ -674,6 +694,11 @@ table.grid-table tr:hover td {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  /* Without this, a label with extra content below it (e.g. the Status field's "Changes here
+   * save immediately" hint) stretches to be taller than its row sibling, and grid's default
+   * stretch alignment then stretches the sibling label to match — pushing its input down and
+   * leaving a gap under the label instead of both inputs lining up flush. */
+  align-items: start;
 }
 
 .toggle {
@@ -914,6 +939,68 @@ table.grid-table tr:hover td {
 
 @media (max-width: 980px) { .report-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .reports-heading { flex-direction: column; }.report-filter-grid { grid-template-columns: 1fr; }.report-actions { width: 100%; }.report-actions .btn { flex: 1; } }
+
+/* Brand-colored export actions — Excel green / PDF red — instead of two identical grey buttons,
+ * with a spinner swapped in for the file icon while the export request is in flight. */
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: none;
+  border-radius: 11px;
+  padding: 9px 16px 9px 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+.export-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.export-btn:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.export-btn-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .22);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.export-btn-excel {
+  background: linear-gradient(135deg, #21a366, #107c41);
+  box-shadow: 0 6px 16px rgba(16, 124, 65, .32);
+}
+
+.export-btn-pdf {
+  background: linear-gradient(135deg, #e8503a, #c22a1e);
+  box-shadow: 0 6px 16px rgba(194, 42, 30, .32);
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .4);
+  border-top-color: #fff;
+  animation: btn-spinner-spin .7s linear infinite;
+}
+
+@keyframes btn-spinner-spin {
+  to { transform: rotate(360deg); }
+}
 
 .signin-shell {
   display: flex;
@@ -1714,6 +1801,62 @@ table.grid-table tr:hover td {
   text-overflow: ellipsis;
 }
 
+/* Task ID should always render in full, never truncated — just prevented from wrapping onto a
+ * second line (the column is sized generously enough that this shouldn't need to overflow). */
+.nowrap-cell {
+  display: block;
+  white-space: nowrap;
+}
+
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  outline: none;
+}
+
+.tooltip-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  transform: translate(-50%, 4px);
+  z-index: 40;
+  max-width: 280px;
+  width: max-content;
+  padding: 7px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-900);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.tooltip-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--navy-900);
+}
+
+.tooltip-anchor:hover .tooltip-bubble,
+.tooltip-anchor:focus-visible .tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
 /* This card sits beside the status-breakdown chart, so its available width is tighter than a
  * full-width grid — table-layout:fixed + per-column widths + ellipsis on every text cell keeps
  * five columns of real content (long task IDs, company/sub-company, assignee names) on one line
@@ -1722,11 +1865,25 @@ table.grid-table tr:hover td {
   table-layout: fixed;
 }
 
-.dashboard-week-table th:nth-child(1), .dashboard-week-table td:nth-child(1) { width: 20%; }
-.dashboard-week-table th:nth-child(2), .dashboard-week-table td:nth-child(2) { width: 24%; }
-.dashboard-week-table th:nth-child(3), .dashboard-week-table td:nth-child(3) { width: 24%; }
-.dashboard-week-table th:nth-child(4), .dashboard-week-table td:nth-child(4) { width: 22%; }
-.dashboard-week-table th:nth-child(5), .dashboard-week-table td:nth-child(5) { width: 10%; }
+/* Task ID renders in full now (.nowrap-cell, no ellipsis) — a task number like
+ * "TSK-20260805-74179C06" needs real room, so it gets the biggest share. Title/Company/Assigned
+ * to give up the difference (they still ellipsize with a tooltip for the rest), and Status keeps
+ * just enough to fit "In progress" on one line. */
+.dashboard-week-table th:nth-child(1), .dashboard-week-table td:nth-child(1) { width: 26%; }
+.dashboard-week-table th:nth-child(2), .dashboard-week-table td:nth-child(2) { width: 20%; }
+.dashboard-week-table th:nth-child(3), .dashboard-week-table td:nth-child(3) { width: 20%; }
+.dashboard-week-table th:nth-child(4), .dashboard-week-table td:nth-child(4) { width: 17%; }
+.dashboard-week-table th:nth-child(5), .dashboard-week-table td:nth-child(5) { width: 17%; }
+
+/* Assigned to's truncated name sat almost flush against the Status badge with only the base
+ * 10px cell padding between them — extra left padding on Status opens up real breathing room. */
+.dashboard-week-table th:nth-child(5), .dashboard-week-table td:nth-child(5) { padding-left: 28px; }
+
+/* Column alignment (Assigned to / Status) is set via the Table component's `align` prop as an
+ * inline style, not here — two separate generic grid-table rules (a `:has(+ th:last-child)`
+ * header centerer and a `td:has(> .badge)` centerer) were mis-targeting this table's columns by
+ * position, and kept needing higher- and higher-specificity CSS overrides to fight off. An inline
+ * style always wins, so it's the one place immune to whatever the shared stylesheet does next. */
 
 .dashboard-week-table .cell-person { min-width: 0; }
 .dashboard-week-table .cell-person > span:last-child {
@@ -1784,6 +1941,34 @@ table.grid-table tr:hover td {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.task-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+
+.task-back-link .ti {
+  font-size: 15px;
+  transition: transform .15s ease;
+}
+
+.task-back-link:hover {
+  color: var(--accent-600);
+}
+
+.task-back-link:hover .ti {
+  transform: translateX(-2px);
 }
 
 .task-tabs {
@@ -1847,6 +2032,28 @@ table.grid-table tr:hover td {
   font-size: 13px;
   font-weight: 500;
   outline: none;
+}
+
+/* input[type=date] brings its own browser-drawn calendar affordance with different intrinsic
+ * sizing than a text input or select — pin an explicit height so the Due date field lines up
+ * with its row sibling instead of rendering taller/shorter. */
+.task-overview-form input,
+.task-overview-form select {
+  height: 40px;
+}
+
+.task-overview-form input[type="date"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.task-overview-form input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.task-overview-form input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
 }
 
 .task-overview-form textarea {
@@ -2073,51 +2280,139 @@ table.grid-table tr:hover td {
   gap: 10px;
 }
 
+/* E-commerce-style order tracker: a row of stage nodes joined by a connecting line, the
+ * line/node segment leading into a reached stage is colored, everything beyond the current
+ * stage stays muted — instead of the old flat grid of identically-styled "complete" boxes. */
 .status-trail {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 4px 0;
 }
 
 .status-step {
-  display: grid;
-  gap: 6px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  background: #f8f9fc;
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+  text-align: center;
 }
 
-.status-step span {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
+.status-step:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 19px;
+  left: -50%;
+  width: 100%;
+  height: 3px;
   background: var(--border);
-  color: var(--surface);
-  font-size: 9px;
-  font-weight: 800;
+  z-index: 0;
 }
 
-.status-step.complete span {
+.status-step.is-past::before,
+.status-step.is-current::before {
   background: var(--success);
 }
 
+.status-step-dot {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text-faint);
+  font-size: 17px;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease;
+}
+
+.status-step.is-past .status-step-dot {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.status-step.is-current .status-step-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  animation: status-step-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes status-step-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--accent-100); }
+  50% { box-shadow: 0 0 0 8px var(--accent-100); }
+}
+
+.status-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .status-step strong {
-  font-size: 13px;
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.status-step.is-upcoming strong {
+  color: var(--text-faint);
+}
+
+.status-step.is-current strong {
+  color: var(--accent-600);
 }
 
 .status-step small {
-  color: var(--text-muted);
-  font-size: 11.5px;
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
 .status-step p {
-  margin: 0;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #f8f9fc;
   color: var(--text-muted);
   font-size: 11.5px;
   line-height: 1.5;
+  text-align: left;
+}
+
+@media (max-width: 720px) {
+  .status-trail {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+  }
+
+  .status-step {
+    flex-direction: row;
+    text-align: left;
+    padding: 0;
+  }
+
+  .status-step:not(:first-child)::before {
+    top: -9px;
+    left: 19px;
+    width: 3px;
+    height: 18px;
+  }
+
+  .status-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
 }
 
 .timeline-item {
@@ -3479,8 +3774,15 @@ table.grid-table td:has(> .badge) .badge::before {
 .notifications-page,
 .profile-page {
   width: 100%;
-  max-width: 520px;
   margin: 0 auto;
+}
+
+.notifications-page {
+  max-width: 840px;
+}
+
+.profile-page {
+  max-width: 520px;
 }
 
 .notification-card { padding-top: 14px; }

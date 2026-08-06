@@ -4,6 +4,10 @@ type Column<T extends object> = {
   key: keyof T | string;
   header: string;
   render?: (row: T) => ReactNode;
+  /** Inline style, not a CSS class — deliberately immune to whatever generic nth-child/:has()
+   * alignment rules a shared `.grid-table` stylesheet might apply to "whichever column happens
+   * to sit last/second-to-last", which has repeatedly mis-targeted columns by position alone. */
+  align?: "left" | "center" | "right";
 };
 
 type TableProps<T extends object> = {
@@ -19,7 +23,7 @@ export function Table<T extends object>({ columns, rows, emptyState, onRowClick 
       <thead>
         <tr>
           {columns.map((column) => (
-            <th key={String(column.key)}>{column.header}</th>
+            <th key={String(column.key)} style={column.align ? { textAlign: column.align } : undefined}>{column.header}</th>
           ))}
         </tr>
       </thead>
@@ -39,7 +43,7 @@ export function Table<T extends object>({ columns, rows, emptyState, onRowClick 
               }}
             >
               {columns.map((column) => (
-                <td key={String(column.key)}>{column.render ? column.render(row) : String(row[column.key as keyof T] ?? "")}</td>
+                <td key={String(column.key)} style={column.align ? { textAlign: column.align } : undefined}>{column.render ? column.render(row) : String(row[column.key as keyof T] ?? "")}</td>
               ))}
             </tr>
           ))

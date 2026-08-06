@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card, CellPerson, Table } from "../components/ui";
+import { Badge, Card, CellPerson, Table } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
 import { getCompaniesForRole, getCompanyById } from "../services/companies";
@@ -100,12 +100,24 @@ export function ReportsPage() {
       <div className="reports-heading">
         <div><h2>Reports</h2><p>Build an exportable view of your scoped task data.</p></div>
         <div className="report-actions">
-          <Button size="small" onClick={() => handleExport("excel")} disabled={exportingFormat !== null || Boolean(pendingJobId)}>
-            <i className="ti ti-file-spreadsheet" />{exportingFormat === "excel" ? "Exporting..." : "Export Excel"}
-          </Button>
-          <Button size="small" onClick={() => handleExport("pdf")} disabled={exportingFormat !== null || Boolean(pendingJobId)}>
-            <i className="ti ti-file-type-pdf" />{exportingFormat === "pdf" ? "Exporting..." : "Export PDF"}
-          </Button>
+          <button
+            type="button"
+            className="export-btn export-btn-excel"
+            onClick={() => handleExport("excel")}
+            disabled={exportingFormat !== null || Boolean(pendingJobId)}
+          >
+            <span className="export-btn-icon">{exportingFormat === "excel" ? <span className="btn-spinner" /> : <i className="ti ti-file-spreadsheet" />}</span>
+            {exportingFormat === "excel" ? "Exporting…" : "Export Excel"}
+          </button>
+          <button
+            type="button"
+            className="export-btn export-btn-pdf"
+            onClick={() => handleExport("pdf")}
+            disabled={exportingFormat !== null || Boolean(pendingJobId)}
+          >
+            <span className="export-btn-icon">{exportingFormat === "pdf" ? <span className="btn-spinner" /> : <i className="ti ti-file-type-pdf" />}</span>
+            {exportingFormat === "pdf" ? "Exporting…" : "Export PDF"}
+          </button>
         </div>
       </div>
 
