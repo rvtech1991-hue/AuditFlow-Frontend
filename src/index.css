@@ -38,18 +38,23 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(180deg, #EFF2F9 0%, #E8ECF6 100%);
   color: var(--text);
-  padding: 48px 24px 80px;
 }
 
 .app {
   display: flex;
-  min-height: 600px;
+  height: 100vh;
   background: var(--bg);
 }
 
+/* The sidebar used to just be a flex sibling with no height of its own — it stretched to match
+ * however tall the page content grew (and the whole window scrolled with it). Pinning it to
+ * .app's height and letting only `.main` scroll keeps nav/branding in place no matter how long a
+ * grid gets. */
 .sidebar {
   width: 220px;
   flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
   background: linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);
   padding: 22px 14px;
   display: flex;
@@ -141,13 +146,19 @@ body {
 }
 
 .nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
   margin-left: auto;
-  font-size: 10.5px;
-  font-weight: 700;
+  padding: 0 7px;
+  border-radius: 999px;
   background: var(--danger);
   color: #fff;
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .sidebar-footer {
@@ -157,6 +168,49 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.sidebar-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  border-radius: 9px;
+  padding: 4px;
+  margin: -4px;
+  color: inherit;
+  text-decoration: none;
+  transition: background .15s ease;
+}
+
+.sidebar-identity:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+.sidebar-identity small {
+  color: rgba(255, 255, 255, .55);
+}
+
+.sidebar-logout {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(214, 48, 63, .16);
+  color: #FF9B9B;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+
+.sidebar-logout:hover {
+  background: var(--danger);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .avatar {
@@ -192,8 +246,10 @@ body {
 .main {
   flex: 1;
   min-width: 0;
+  height: 100%;
   padding: 26px 30px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .topbar {
@@ -277,14 +333,15 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 38px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 8px 13px;
+  padding: 0 13px;
   font-size: 12.5px;
   color: var(--text-faint);
   box-shadow: var(--shadow-sm);
-  min-width: 200px;
+  min-width: 380px;
 }
 
 /* Role select in topbar */
@@ -303,43 +360,99 @@ body {
   position: relative;
 }
 
+/* `left:0; right:0` (rather than a wider fixed width anchored only at `right:0`) stretches this
+ * to exactly match the search box's own rendered width, so it lines up with both edges of the
+ * input instead of overhanging further left than where the box actually starts. */
 .search-results {
   position: absolute;
+  left: 0;
   right: 0;
-  top: 44px;
+  top: calc(100% + 8px);
   z-index: 30;
-  width: min(420px, 78vw);
+  max-height: 340px;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 6px;
   background: var(--surface);
   box-shadow: var(--shadow-lg);
+  animation: search-results-in .14s ease;
+}
+
+@keyframes search-results-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.search-results-count {
+  padding: 6px 8px 8px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
 }
 
 .search-results button {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  min-width: 0;
   border: 0;
   border-radius: 9px;
-  padding: 10px;
+  padding: 9px 10px;
   background: transparent;
   color: var(--text);
   text-align: left;
   cursor: pointer;
 }
 
-.search-results button:hover {
+.search-results button + button {
+  margin-top: 1px;
+}
+
+.search-results button:hover,
+.search-results button:focus-visible {
   background: var(--accent-100);
+  outline: none;
+}
+
+.search-result-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--accent-100);
+  color: var(--accent-600);
+  font-size: 14px;
+}
+
+.search-results button:hover .search-result-icon,
+.search-results button:focus-visible .search-result-icon {
+  background: var(--surface);
+}
+
+.search-result-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .search-results strong {
   color: var(--accent-600);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .search-results span {
+  overflow: hidden;
   font-weight: 700;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search-results small,
@@ -349,7 +462,10 @@ body {
 }
 
 .search-empty {
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
 }
 
 /* Segmented toggle for dashboard view */
@@ -481,7 +597,8 @@ table.grid-table tr:hover td {
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
-  padding: 5px 10px;
+  height: 26px;
+  padding: 0 12px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -822,13 +939,23 @@ table.grid-table tr:hover td {
 @media (max-width: 860px) {
   .app {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
   }
+  /* The sidebar becomes a horizontal top bar at this width — it should size to its own content,
+   * not stretch to fill .app's height the way the vertical desktop sidebar does. */
   .sidebar {
     width: 100%;
+    height: auto;
+    overflow-y: visible;
     flex-direction: row;
     align-items: center;
     padding: 12px 16px;
     overflow-x: auto;
+  }
+  .main {
+    height: auto;
+    overflow-y: visible;
   }
   .brand {
     padding: 0 14px 0 0;
@@ -1719,6 +1846,51 @@ table.grid-table tr:hover td {
   gap: 10px;
 }
 
+/* The plain default .btn (white/grey) is used all over the app for lower-stakes actions — these
+ * sit right next to the primary "Create new task" CTA in a toolbar, so each gets its own soft
+ * tint (not the primary's solid blue, to keep it clearly secondary) matched to what the icon
+ * actually represents, instead of one flat grey rectangle or a single reused accent color. */
+.task-action-buttons .btn:not(.primary) {
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
+  transition: background .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.task-action-buttons .btn:not(.primary):hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Teal — "browse the full list" is a neutral navigation action, not a status, so it gets a
+ * calm distinct hue rather than reusing the primary CTA's blue. */
+.list-toggle-btn {
+  background: #E6F7F5;
+  color: #0F766E;
+}
+
+.list-toggle-btn i {
+  color: #0D9488;
+}
+
+.list-toggle-btn:hover {
+  background: #D3F0EC;
+}
+
+/* Amber — matches the app's existing warning/in-progress color, which reads naturally for an
+ * import/upload action. */
+.upload-toggle-btn {
+  background: var(--warning-bg);
+  color: #92610B;
+}
+
+.upload-toggle-btn i {
+  color: var(--warning);
+}
+
+.upload-toggle-btn:hover {
+  background: #FBE7C4;
+}
+
 .task-filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -1908,6 +2080,61 @@ table.grid-table tr:hover td {
 .pagination-footer div {
   display: flex;
   gap: 8px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-step,
+.pagination-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pagination-step i {
+  font-size: 14px;
+}
+
+.pagination-step:hover:not(:disabled),
+.pagination-page:hover:not(.active) {
+  background: #f3f5fa;
+  color: var(--text);
+}
+
+.pagination-step:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.pagination-page.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-600));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(59, 111, 237, .28);
+}
+
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 /* ===== Task details ===== */
@@ -3736,27 +3963,35 @@ table.grid-table td:has(> .badge) .badge::before {
 .upload-dropzone > i { display: block; color: var(--accent); font-size: 22px; }
 
 /* ===== Mockup-aligned bulk import ===== */
-.bulk-upload-modal { width: 100%; max-width: 720px; align-self: flex-start; border: 1px solid rgba(18,22,43,.06); border-radius: 20px; padding: 26px 30px 24px; background: var(--surface); box-shadow: var(--shadow-lg); }
-.bulk-upload-modal:has(.bulk-preview-content) { max-width: 1240px; }
-.bulk-step { display: flex; align-items: center; gap: 12px; }
+/* Fixed at one moderate width always, instead of growing from 720px to 1240px once the preview
+ * table appears (that resize made the modal visibly jump between the before/after-upload
+ * states, and just going with the wider size permanently looked oversized before a file's even
+ * uploaded). The table has its own horizontal-scroll wrapper (.bulk-table-wrap, min-width
+ * 1100px) so it scrolls within this width rather than needing the whole modal to grow. */
+.bulk-upload-modal { width: 100%; max-width: 900px; align-self: flex-start; border: 1px solid rgba(18,22,43,.06); border-radius: 20px; padding: 26px 30px 24px; background: var(--surface); box-shadow: var(--shadow-lg); }
+/* The number circle used to live INSIDE the step-1 tinted card, so its 16px padding pushed "1"
+ * out of alignment with the plain "2"/"3" headings next to it, which have no such box. The
+ * circle is now a sibling of the card (both children of .bulk-step), so all three numbers sit
+ * in the same left column regardless of which step has a card around its content. */
+.bulk-step { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; max-width: 760px; }
 .bulk-step > span, .bulk-step-heading > span { display: grid; width: 26px; height: 26px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--accent-100); color: var(--accent-600); font-size: 12px; font-weight: 800; }
-.bulk-template-step { margin: 0 0 14px; border-radius: 12px; padding: 14px 16px; background: #f5f7fb; }
+.bulk-template-step { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border-radius: 12px; padding: 14px 16px; background: #f5f7fb; }
 .bulk-template-step > div, .bulk-step-heading > div { flex: 1; }
 .bulk-template-step strong, .bulk-step-heading strong { font-size: 12.5px; }
 .bulk-template-step p, .bulk-step-heading p { margin: 2px 0 0; color: var(--text-muted); font-size: 11.5px; }
-.bulk-step-heading { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; }
-.bulk-upload-dropzone { margin: 0 0 20px 38px; padding: 18px; }
+.bulk-step-heading { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; max-width: 760px; }
+.bulk-upload-dropzone { max-width: 722px; margin: 0 0 20px 38px; padding: 18px; }
 .bulk-preview-content { margin-left: 38px; }
 .bulk-preview-content .bulk-summary { margin-bottom: 12px; }
 .bulk-preview-content .bulk-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
 .bulk-preview-content .bulk-preview-table { min-width: 1100px; }
-.bulk-empty-note { margin: 0 0 20px 38px; border-radius: 9px; padding: 10px 12px; background: #f5f7fb; color: var(--text-muted); font-size: 11.5px; line-height: 1.5; }
+.bulk-empty-note { max-width: 722px; margin: 0 0 20px 38px; border-radius: 9px; padding: 10px 12px; background: #f5f7fb; color: var(--text-muted); font-size: 11.5px; line-height: 1.5; }
 .bulk-upload-modal .modal-footer-actions { margin-top: 20px; }
 .task-create-modal .modal-close-button i { font-size: 15px; }
 
-@media (max-width: 1300px) { .modal-route-page:has(.bulk-preview-content) { padding: 30px 14px; } }
+@media (max-width: 1300px) { .modal-route-page { padding: 30px 14px; } }
 
-@media (max-width: 560px) { .bulk-upload-modal { padding: 22px 18px; }.bulk-upload-dropzone, .bulk-preview-content, .bulk-empty-note { margin-left: 0; }.bulk-template-step { align-items: flex-start; flex-wrap: wrap; }.bulk-template-step .btn { margin-left: 38px; } }
+@media (max-width: 560px) { .bulk-upload-modal { padding: 22px 18px; }.bulk-upload-dropzone, .bulk-preview-content, .bulk-empty-note { margin-left: 0; }.bulk-step { align-items: flex-start; }.bulk-template-step { flex-wrap: wrap; } }
 
 .upload-dropzone p {
   margin: 8px 0 0;
@@ -3814,7 +4049,63 @@ table.grid-table td:has(> .badge) .badge::before {
 .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; font-size: 12.5px; }
 .preference-row + .preference-row { border-top: 1px solid #f1f3f8; }
 .profile-logout { width: 100%; color: var(--danger); }
-.topbar-avatar { text-decoration: none; }
+.topbar-avatar { border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: none; }
+
+.avatar-menu-wrap { position: relative; z-index: 25; }
+
+.avatar-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: row-menu-in .14s ease-out;
+}
+
+.avatar-menu-identity {
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-menu-identity strong {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.avatar-menu-identity small {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.avatar-menu button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.avatar-menu button > i { color: var(--text-muted); font-size: 15px; }
+.avatar-menu button:hover { background: #f3f5fa; }
+.avatar-menu button.danger { color: var(--danger); }
+.avatar-menu button.danger > i { color: var(--danger); }
+.avatar-menu button.danger:hover { background: var(--danger-bg); }
 .toggle { border: 0; cursor: pointer; }
 .toggle span { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: left .18s ease; }
 .toggle.on span { left: 18px; }

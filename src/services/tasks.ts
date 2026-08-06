@@ -297,13 +297,27 @@ export type TaskQueryFilters = {
   assignee?: string;
   status?: Exclude<TaskStatus, "overdue"> | "all";
   query?: string;
+  page?: number;
 };
 
-export type TaskPage = { items: TaskEntry[]; totalCount: number };
+// Rendering hundreds/thousands of rows in one page was the actual scaling risk (not just a UI
+// nit) — this keeps the DOM and the request itself small regardless of how much task data a
+// tenant accumulates over time, rather than fetching (and rendering) up to 100 rows at once.
+export const TASK_PAGE_SIZE = 10;
+
+export type TaskPage = {
+  items: TaskEntry[];
+  totalCount: number;
+  pageNumber: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
 
 export async function getTasks(role: Role, userEmail: string, filters: TaskQueryFilters): Promise<TaskPage> {
+  const page = filters.page ?? 1;
   if (API_MODE === "mock") {
-    const items = mockQueryTasks(role, userEmail, {
+    const allItems = mockQueryTasks(role, userEmail, {
       dateRange: filters.range,
       company: filters.company,
       subCompany: filters.subCompany,
@@ -311,7 +325,10 @@ export async function getTasks(role: Role, userEmail: string, filters: TaskQuery
       status: filters.status === "all" ? "all" : filters.status,
       query: filters.query,
     }).map(taskEntryFromMock);
-    return { items, totalCount: items.length };
+    const start = (page - 1) * TASK_PAGE_SIZE;
+    const items = allItems.slice(start, start + TASK_PAGE_SIZE);
+    const totalPages = Math.max(1, Math.ceil(allItems.length / TASK_PAGE_SIZE));
+    return { items, totalCount: allItems.length, pageNumber: page, totalPages, hasPreviousPage: page > 1, hasNextPage: start + TASK_PAGE_SIZE < allItems.length };
   }
   const data = await apiClient.get<PagedResult<RawTaskListItem>>("/tasks", {
     range: filters.range === "week" ? "this-week" : "all",
@@ -320,9 +337,17 @@ export async function getTasks(role: Role, userEmail: string, filters: TaskQuery
     assignedToUserId: filters.assignee || undefined,
     status: filters.status && filters.status !== "all" ? mapTaskStatusToEnum(filters.status) : undefined,
     search: filters.query || undefined,
-    pageSize: 100,
+    pageNumber: page,
+    pageSize: TASK_PAGE_SIZE,
   });
-  return { items: data.items.map(mapTaskListItem), totalCount: data.totalCount };
+  return {
+    items: data.items.map(mapTaskListItem),
+    totalCount: data.totalCount,
+    pageNumber: data.pageNumber,
+    totalPages: data.totalPages,
+    hasPreviousPage: data.hasPreviousPage,
+    hasNextPage: data.hasNextPage,
+  };
 }
 
 export type TaskSearchResult = { id: string; taskNumber: string; title: string };

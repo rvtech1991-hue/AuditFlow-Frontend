@@ -5,6 +5,7 @@ export * from "./Chip";
 export * from "./DonutChart";
 export * from "./FormField";
 export * from "./Modal";
+export * from "./Pagination";
 export * from "./RowActionMenu";
 export * from "./Table";
 export * from "./Toast";

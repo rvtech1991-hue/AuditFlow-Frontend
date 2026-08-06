@@ -35,5 +35,4 @@ export const navItems: NavItem[] = [
   { label: "Users", path: "/users", roles: ["Auditor", "Company admin"], group: "Manage", icon: "◉" },
   { label: "Auditor accounts", path: "/admin/tenants", roles: ["Platform admin"], group: "Platform", icon: "◆" },
   { label: "Notifications", path: "/notifications", roles: ["Platform admin", "Auditor", "Company admin", "Employee"], group: "Platform", icon: "◌" },
-  { label: "Profile", path: "/profile", roles: ["Platform admin", "Auditor", "Company admin", "Employee"], group: "Platform", icon: "◎" },
 ];

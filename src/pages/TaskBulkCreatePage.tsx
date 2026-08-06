@@ -107,7 +107,7 @@ function MockBulkCreatePage() {
           <div><h2 id="bulk-upload-title">Bulk create tasks</h2><p>Use this for audits that surface many findings at once — for example, the same checklist item across many sub-companies.</p></div>
           <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/tasks")}><i className="ti ti-x" /></button>
         </div>
-        <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>Pre-filled with your companies, sub-companies, and active users for validation.</p></div><Button size="small" onClick={downloadMockTemplate}><i className="ti ti-download" />Download .csv</Button></div>
+        <div className="bulk-step"><span>1</span><div className="bulk-template-step"><div><strong>Download the template</strong><p>Pre-filled with your companies, sub-companies, and active users for validation.</p></div><Button size="small" onClick={downloadMockTemplate}><i className="ti ti-download" />Download .csv</Button></div></div>
         <div className="bulk-step-heading"><span>2</span><strong>Upload your filled file</strong></div>
         <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv,.xlsx,.xls" onChange={simulateUpload} /><i className="ti ti-cloud-upload" /><p>{fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV or Excel file here or click to upload"}</p></label>
         <div className="bulk-step-heading"><span>3</span><strong>Review before import</strong></div>
@@ -277,7 +277,7 @@ function LiveBulkCreatePage() {
           <div><h2 id="bulk-upload-title">Bulk create tasks</h2><p>Use this for audits that surface many findings at once — for example, the same checklist item across many sub-companies.</p></div>
           <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/tasks")}><i className="ti ti-x" /></button>
         </div>
-        <div className="bulk-step bulk-template-step"><span>1</span><div><strong>Download the template</strong><p>Excel file with columns: title, description, company, subCompany, assigneeEmail, priority, dueDate.</p></div><Button size="small" onClick={handleDownloadTemplate}><i className="ti ti-download" />Download .xlsx</Button></div>
+        <div className="bulk-step"><span>1</span><div className="bulk-template-step"><div><strong>Download the template</strong><p>Excel file with columns: title, description, company, subCompany, assigneeEmail, priority, dueDate.</p></div><Button size="small" onClick={handleDownloadTemplate}><i className="ti ti-download" />Download .xlsx</Button></div></div>
         <div className="bulk-step-heading"><span>2</span><div><strong>Upload your filled file</strong><p>CSV or Excel (.xlsx/.xls) accepted.</p></div></div>
         <label className="upload-dropzone bulk-upload-dropzone"><input type="file" accept=".csv,.xlsx,.xls" onChange={handleUpload} disabled={isUploading} /><i className="ti ti-cloud-upload" /><p>{isUploading ? "Validating..." : fileName ? <><b>{fileName}</b> — uploaded and validated.</> : "Drag a CSV or Excel file here or click to upload"}</p></label>
         {uploadError ? <p className="form-error">{uploadError}</p> : null}

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card, CellPerson, Chip, Table } from "../components/ui";
+import { Badge, Button, Card, CellPerson, Chip, Pagination, Table } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
-import { getTaskFilterOptions, getTasks, type TaskEntry, type TaskStatus } from "../services/tasks";
+import { getTaskFilterOptions, getTasks, TASK_PAGE_SIZE, type TaskEntry, type TaskStatus } from "../services/tasks";
 
 // "Overdue" isn't a real backend status (it's a due-date-derived flag folded into the display
 // status client-side — see displayTaskStatus), so it can't be sent as a `status` query param.
@@ -34,6 +34,7 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   const [status, setStatus] = useState<TaskStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [dateRange, setDateRange] = useState<"week" | "all" | "last30" | "quarter">(mode === "week" ? "week" : "all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setDateRange(mode === "week" ? "week" : "all");
@@ -47,20 +48,34 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
     // (e.g. /tasks/all?status=open) — honor it once on arrival, same as any other reset default.
     setStatus((searchParams.get("status") as TaskStatus | null) ?? "all");
     setQuery("");
+    setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, role, user.email]);
 
+  // Any filter change narrows/widens the result set, so a page number from before no longer
+  // means the same thing — always land back on page 1 rather than risk showing an empty page.
+  const setFilterAndResetPage = <T,>(setter: (value: T) => void, value: T) => {
+    setter(value);
+    setPage(1);
+  };
+
   const filterOptionsQuery = useQuery({ queryKey: ["tasks", "filter-options", role], queryFn: () => getTaskFilterOptions(role, user.email) });
   const tasksQuery = useQuery({
-    queryKey: ["tasks", role, user.email, dateRange, company, subCompany, assignee, status, query],
-    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" ? "all" : status, query: query || undefined }),
+    queryKey: ["tasks", role, user.email, dateRange, company, subCompany, assignee, status, query, page],
+    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" ? "all" : status, query: query || undefined, page }),
   });
 
   const filterOptions = filterOptionsQuery.data ?? { companies: [], subCompanies: [], assignees: [] };
   // "Overdue" has no backend status to filter by — narrow the fetched page down client-side
-  // against the display status instead (see the statusOptions comment above).
+  // against the display status instead (see the statusOptions comment above). Note this only
+  // ever sees the current server page (20 rows), so Prev/Next still page through the underlying
+  // unfiltered result set rather than an "overdue-only" result set — a pre-existing approximation,
+  // just more visible now that pages are smaller than the old 100-row fetch.
   const fetchedRows = tasksQuery.data?.items ?? [];
   const rows = status === "overdue" ? fetchedRows.filter((task) => task.status === "overdue") : fetchedRows;
+  const totalCount = tasksQuery.data?.totalCount ?? 0;
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * TASK_PAGE_SIZE + 1;
+  const rangeEnd = totalCount === 0 ? 0 : rangeStart + fetchedRows.length - 1;
   const title = mode === "week" ? "Tasks" : "All tasks";
   const subtitle =
     mode === "week"
@@ -72,13 +87,17 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
       <div className="task-actions-row">
         <div>
           <h2>{title}</h2>
-          <p>{subtitle} {rows.length} tasks visible.</p>
+          <p>{subtitle} {totalCount} tasks total.</p>
         </div>
         <div className="task-action-buttons">
-          {mode === "week" ? <Button onClick={() => navigate("/tasks/all")}>Full list</Button> : <Button onClick={() => navigate("/tasks")}>Current week</Button>}
+          {mode === "week" ? (
+            <Button className="list-toggle-btn" onClick={() => navigate("/tasks/all")}><i className="ti ti-list-details" />Full list</Button>
+          ) : (
+            <Button className="list-toggle-btn" onClick={() => navigate("/tasks")}><i className="ti ti-calendar-week" />Current week</Button>
+          )}
           {role === "Auditor" ? (
             <>
-            <Button onClick={() => navigate("/tasks/bulk-upload")}><i className="ti ti-file-upload" />Bulk upload</Button>
+            <Button className="upload-toggle-btn" onClick={() => navigate("/tasks/bulk-upload")}><i className="ti ti-file-upload" />Bulk upload</Button>
             <Button variant="primary" onClick={() => navigate("/tasks/new")}><i className="ti ti-plus" />Create new task</Button>
             </>
           ) : null}
@@ -88,24 +107,24 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
       <Card>
         <div className="task-filter-row">
           <Chip active>{mode === "week" ? "This week" : dateRange === "all" ? "All time" : dateRange === "last30" ? "Last 30 days" : "Last quarter"}</Chip>
-          <input className="task-filter-search" placeholder="Filter by task ID or description" value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
-          <select value={company} onChange={(event) => setCompany(event.currentTarget.value)} disabled={role === "Company admin"}>
+          <input className="task-filter-search" placeholder="Filter by task ID or description" value={query} onChange={(event) => setFilterAndResetPage(setQuery, event.currentTarget.value)} />
+          <select value={company} onChange={(event) => setFilterAndResetPage(setCompany, event.currentTarget.value)} disabled={role === "Company admin"}>
             <option value="">{role === "Company admin" ? filterOptions.companies[0]?.label ?? "Company locked" : "Company: All"}</option>
             {filterOptions.companies.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <select value={subCompany} onChange={(event) => setSubCompany(event.currentTarget.value)}>
+          <select value={subCompany} onChange={(event) => setFilterAndResetPage(setSubCompany, event.currentTarget.value)}>
             <option value="">Sub-company: All</option>
             {filterOptions.subCompanies.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <select value={assignee} onChange={(event) => setAssignee(event.currentTarget.value)} disabled={role === "Employee"}>
+          <select value={assignee} onChange={(event) => setFilterAndResetPage(setAssignee, event.currentTarget.value)} disabled={role === "Employee"}>
             <option value="">{role === "Employee" ? "Assigned to you" : "Assignee: All"}</option>
             {filterOptions.assignees.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <select value={status} onChange={(event) => setStatus(event.currentTarget.value as TaskStatus | "all")}>
+          <select value={status} onChange={(event) => setFilterAndResetPage(setStatus, event.currentTarget.value as TaskStatus | "all")}>
             {statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           {mode === "all" ? (
-            <select value={dateRange} onChange={(event) => setDateRange(event.currentTarget.value as "week" | "all" | "last30" | "quarter")}>
+            <select value={dateRange} onChange={(event) => setFilterAndResetPage(setDateRange, event.currentTarget.value as "week" | "all" | "last30" | "quarter")}>
               <option value="all">All time</option>
               <option value="week">This week</option>
               <option value="last30">Last 30 days</option>
@@ -137,12 +156,12 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
         )}
 
         <div className="pagination-footer">
-          <span>Showing {rows.length} of {status === "overdue" ? rows.length : tasksQuery.data?.totalCount ?? rows.length} scoped tasks</span>
-          <div>
-            <Button size="small">Prev</Button>
-            {mode === "all" ? <Button size="small" variant="primary">1</Button> : null}
-            <Button size="small">Next</Button>
-          </div>
+          <span>
+            {status === "overdue"
+              ? `Showing ${rows.length} overdue task${rows.length === 1 ? "" : "s"} on this page`
+              : `Showing ${rangeStart}-${rangeEnd} of ${totalCount} scoped tasks`}
+          </span>
+          <Pagination page={page} totalPages={tasksQuery.data?.totalPages ?? 1} onChange={setPage} />
         </div>
       </Card>
     </div>

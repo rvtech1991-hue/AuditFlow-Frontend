@@ -41,21 +41,27 @@ export function GlobalSearch() {
       {open ? (
         <div className="search-results">
           {results.length ? (
-            results.map((task) => (
-              <button
-                key={task.id}
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  navigate(`/tasks/${task.id}`);
-                }}
-              >
-                <strong>{task.taskNumber}</strong>
-                <span>{task.title}</span>
-              </button>
-            ))
+            <>
+              <div className="search-results-count">{results.length} result{results.length === 1 ? "" : "s"}</div>
+              {results.map((task) => (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    navigate(`/tasks/${task.id}`);
+                  }}
+                >
+                  <span className="search-result-icon" aria-hidden="true"><i className="ti ti-checkbox" /></span>
+                  <span className="search-result-text">
+                    <strong>{task.taskNumber}</strong>
+                    <span>{task.title}</span>
+                  </span>
+                </button>
+              ))}
+            </>
           ) : (
-            <div className="search-empty">No scoped tasks match that search.</div>
+            <div className="search-empty"><i className="ti ti-search-off" />No scoped tasks match that search.</div>
           )}
         </div>
       ) : null}
