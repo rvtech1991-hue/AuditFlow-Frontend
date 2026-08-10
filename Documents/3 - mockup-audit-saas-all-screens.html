@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuditFlow — complete screen set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<style>
+  :root{
+    --navy-950:#0D1326; --navy-900:#131B33; --navy-800:#1B2547; --navy-700:#26315C;
+    --accent:#3B6FED; --accent-600:#2C5CD6; --accent-100:#E8EFFE;
+    --bg:#F3F5FA; --surface:#FFFFFF; --border:#E6E9F1;
+    --text:#12162B; --text-muted:#666E85; --text-faint:#9AA1B5;
+    --success:#17974B; --success-bg:#E7F7EE;
+    --warning:#B4700B; --warning-bg:#FEF3DE;
+    --danger:#D6303F; --danger-bg:#FDEAEC;
+    --radius-sm:8px; --radius:14px; --radius-lg:20px;
+    --shadow-sm:0 1px 2px rgba(18,22,43,.06), 0 1px 3px rgba(18,22,43,.05);
+    --shadow-md:0 6px 16px rgba(18,22,43,.08), 0 2px 6px rgba(18,22,43,.05);
+    --shadow-lg:0 20px 45px rgba(18,22,43,.16), 0 6px 16px rgba(18,22,43,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:linear-gradient(180deg,#EFF2F9 0%, #E8ECF6 100%);color:var(--text);padding:48px 24px 80px;}
+  .intro{max-width:1180px;margin:0 auto 40px;}
+  .intro h1{font-size:26px;font-weight:800;margin:0 0 6px;letter-spacing:-0.02em;}
+  .intro p{font-size:14px;color:var(--text-muted);margin:0;max-width:680px;line-height:1.6;}
+  .jump{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
+  .jump a{font-size:12.5px;font-weight:600;color:var(--accent-600);background:var(--surface);border:1px solid var(--border);padding:7px 13px;border-radius:999px;text-decoration:none;box-shadow:var(--shadow-sm);}
+  .jump a.role{color:#8A5A00;}
+
+  .frame-wrap{max-width:1180px;margin:0 auto 64px;}
+  .frame-label{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .frame-label .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-600);background:var(--accent-100);padding:4px 10px;border-radius:6px;flex-shrink:0;}
+  .frame-label .tag.admin{color:#8A5A00;background:var(--warning-bg);}
+  .frame-label h2{font-size:19px;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  .frame-label p{font-size:13px;color:var(--text-muted);margin:2px 0 0;}
+
+  .browser-chrome{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;border:1px solid rgba(18,22,43,.06);}
+  .chrome-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(180deg,#FAFBFD 0%, #F1F3F8 100%);border-bottom:1px solid var(--border);}
+  .chrome-dot{width:10px;height:10px;border-radius:50%;}
+  .chrome-bar .url{margin-left:10px;font-size:12px;color:var(--text-faint);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 12px;flex:1;max-width:340px;}
+
+  /* ===== App shell ===== */
+  .app{display:flex;min-height:600px;background:var(--bg);}
+  .sidebar{width:220px;flex-shrink:0;background:linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);padding:22px 14px;display:flex;flex-direction:column;color:#fff;}
+  .brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px;}
+  .brand-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent) 0%, #6C8FF7 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(59,111,237,.35);}
+  .brand-mark i{font-size:17px;color:#fff;}
+  .brand span{font-size:15px;font-weight:700;letter-spacing:-0.01em;}
+  .nav-group{margin-bottom:18px;}
+  .nav-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.35);padding:0 10px;margin-bottom:8px;}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.72);margin-bottom:2px;position:relative;}
+  .nav-item i{font-size:17px;width:18px;text-align:center;}
+  .nav-item.active{background:rgba(255,255,255,.08);color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+  .nav-item.active::before{content:'';position:absolute;left:-14px;top:8px;bottom:8px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;}
+  .nav-badge{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--danger);color:#fff;padding:1px 7px;border-radius:999px;}
+  .sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6C8FF7,var(--accent));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+  .sidebar-footer .who p{margin:0;line-height:1.3;}
+  .sidebar-footer .name{font-size:12.5px;font-weight:600;color:#fff;}
+  .sidebar-footer .role{font-size:11px;color:rgba(255,255,255,.5);}
+
+  .main{flex:1;min-width:0;padding:26px 30px;overflow:hidden;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  .topbar h1{font-size:21px;font-weight:800;margin:0;letter-spacing:-0.02em;}
+  .topbar .sub{font-size:12.5px;color:var(--text-muted);margin:3px 0 0;}
+  .topbar-actions{display:flex;align-items:center;gap:12px;}
+  .icon-btn{width:36px;height:36px;border-radius:9px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);position:relative;color:var(--text-muted);flex-shrink:0;}
+  .icon-btn i{font-size:17px;}
+  .dot-badge{position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface);}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 13px;font-size:12.5px;color:var(--text-faint);box-shadow:var(--shadow-sm);min-width:200px;}
+  .search-box i{font-size:15px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);}
+  .card-title{font-size:13.5px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;justify-content:space-between;}
+  .card-title a{font-size:12px;font-weight:600;color:var(--accent-600);text-decoration:none;}
+
+  table.grid-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.grid-table th{text-align:left;font-weight:600;color:var(--text-faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 10px 10px;}
+  table.grid-table td{padding:12px 10px;border-top:1px solid #F0F2F7;}
+  table.grid-table tr:hover td{background:#FAFBFE;}
+  .tid{color:var(--accent-600);font-weight:700;}
+  .badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;}
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;}
+  .badge.open{background:#EEF0F5;color:#4A5169;}
+  .badge.open::before{background:#8B93A8;}
+  .badge.progress{background:var(--warning-bg);color:var(--warning);}
+  .badge.progress::before{background:var(--warning);}
+  .badge.overdue{background:var(--danger-bg);color:var(--danger);}
+  .badge.overdue::before{background:var(--danger);}
+  .badge.closed{background:var(--success-bg);color:var(--success);}
+  .badge.closed::before{background:var(--success);}
+  .badge.active{background:var(--success-bg);color:var(--success);}
+  .badge.active::before{background:var(--success);}
+  .badge.invited{background:var(--accent-100);color:var(--accent-600);}
+  .badge.invited::before{background:var(--accent);}
+  .cell-person{display:flex;align-items:center;gap:8px;}
+  .cell-person .av{width:22px;height:22px;border-radius:50%;background:var(--accent-100);color:var(--accent-600);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 18px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-600));color:#fff;border:none;box-shadow:0 6px 14px rgba(59,111,237,.28);}
+  .btn.sm{padding:7px 13px;font-size:12px;}
+  .btn i{font-size:15px;vertical-align:-2px;margin-right:5px;}
+
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:7px 13px;box-shadow:var(--shadow-sm);}
+  .chip.active-chip{color:var(--accent-600);border-color:var(--accent);background:var(--accent-100);}
+  .chip i{font-size:13px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;}
+  .field input, .field select, .field textarea{width:100%;font-family:inherit;font-size:13px;color:var(--text);padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:#FBFCFE;outline:none;}
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-100);background:#fff;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .toggle{width:38px;height:22px;border-radius:999px;background:var(--border);position:relative;flex-shrink:0;}
+  .toggle.on{background:var(--accent);}
+  .toggle .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);}
+  .toggle.on .knob{left:18px;}
+
+  /* ===== Row action menu (user management "...") ===== */
+  .menu-btn{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;}
+  .menu-btn:hover{background:#F0F2F7;}
+  .menu-btn.is-open{background:#EEF0F5;color:var(--text);}
+  .row-menu{position:absolute;right:0;top:34px;background:var(--surface);border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow-lg);min-width:206px;padding:6px;z-index:20;text-align:left;}
+  .row-menu .menu-item{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:500;color:var(--text);padding:9px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;}
+  .row-menu .menu-item:hover{background:#F3F5FA;}
+  .row-menu .menu-item i{font-size:15px;color:var(--text-muted);}
+  .row-menu .menu-item.danger{color:var(--danger);}
+  .row-menu .menu-item.danger i{color:var(--danger);}
+  .row-menu .menu-divider{height:1px;background:#F0F2F7;margin:5px 2px;}
+
+  @media (max-width: 860px){
+    .app{flex-direction:column;}
+    .sidebar{width:100%;flex-direction:row;align-items:center;padding:12px 16px;overflow-x:auto;}
+    .brand{padding:0 14px 0 0;}
+    .nav-group{display:flex;gap:4px;margin-bottom:0;}
+    .nav-eyebrow{display:none;}
+    .nav-item.active::before{display:none;}
+    .sidebar-footer{margin-top:0;margin-left:auto;padding-top:0;border-top:none;padding-left:14px;}
+    .field-row{grid-template-columns:1fr;}
+    .content-grid, .details-grid{grid-template-columns:1fr !important;}
+    .stat-grid{grid-template-columns:1fr 1fr !important;}
+  }
+  @media (max-width: 520px){
+    body{padding:24px 12px 60px;}
+    .stat-grid{grid-template-columns:1fr !important;}
+  }
+
+  /* ===== Sign in ===== */
+  .signin-shell{display:flex;min-height:560px;}
+  .signin-brand{width:44%;background:linear-gradient(160deg, var(--navy-900) 0%, #1E2A56 55%, var(--accent-600) 140%);color:#fff;padding:44px 40px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
+  .signin-brand::after{content:'';position:absolute;right:-60px;bottom:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle, rgba(255,255,255,.10), transparent 70%);}
+  .signin-brand .brand{padding:0;}
+  .signin-quote{font-size:17px;font-weight:600;line-height:1.55;letter-spacing:-0.01em;max-width:320px;}
+  .signin-quote .who{font-size:12.5px;font-weight:500;color:rgba(255,255,255,.6);margin-top:14px;}
+  .signin-form-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px;background:var(--surface);}
+  .signin-form{width:100%;max-width:340px;}
+  .signin-form h2{font-size:21px;font-weight:800;margin:0 0 6px;letter-spacing:-0.01em;}
+  .signin-form .sub{font-size:12.5px;color:var(--text-muted);margin:0 0 26px;}
+  .signin-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+  .signin-row label{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-muted);}
+  .signin-row a{font-size:12.5px;color:var(--accent-600);font-weight:600;text-decoration:none;}
+  .signin-footnote{font-size:12px;color:var(--text-faint);text-align:center;margin-top:22px;line-height:1.6;}
+
+  /* ===== Notifications ===== */
+  .notif-day{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-faint);margin:18px 0 10px;}
+  .notif-item{display:flex;gap:12px;padding:13px 8px;border-radius:10px;position:relative;}
+  .notif-item.unread{background:var(--accent-100);}
+  .notif-item .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+  .notif-item .dot.blue{background:var(--accent-100);} .notif-item .dot.blue i{color:var(--accent-600);}
+  .notif-item .dot.green{background:var(--success-bg);} .notif-item .dot.green i{color:var(--success);}
+  .notif-item .dot.amber{background:var(--warning-bg);} .notif-item .dot.amber i{color:var(--warning);}
+  .notif-item .dot i{font-size:12px;}
+  .notif-item p{margin:0;font-size:12.5px;line-height:1.55;}
+  .notif-item .when{font-size:11px;color:var(--text-faint);margin-top:3px;}
+  .notif-item b{font-weight:700;}
+
+  /* ===== Company list ===== */
+  .company-row{display:flex;align-items:center;gap:14px;padding:14px 10px;border-top:1px solid #F0F2F7;}
+  .company-row:first-child{border-top:none;}
+  .co-icon{width:36px;height:36px;border-radius:9px;background:var(--accent-100);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .co-icon i{font-size:17px;color:var(--accent-600);}
+  .co-name{font-size:13px;font-weight:700;}
+  .co-meta{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  .sub-list{margin:6px 0 0 50px;display:flex;flex-wrap:wrap;gap:6px;}
+  .sub-chip{font-size:11px;font-weight:500;color:var(--text-muted);background:#F3F5FA;padding:4px 10px;border-radius:999px;}
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>AuditFlow — complete screen set</h1>
+  <p>Every screen from the information architecture, in the same visual system as the dashboard set. Role tags show who sees each screen.</p>
+  <div class="jump">
+    <a href="#signin">Sign in</a>
+    <a href="#acceptinvite">Accept invite</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#dashboardexec">Dashboard — executive</a>
+    <a href="#taskgrid">Task grid</a>
+    <a href="#taskgridfull">Task grid — full list</a>
+    <a href="#taskcreate">Create task</a>
+    <a href="#bulkupload">Bulk upload</a>
+    <a href="#taskdetails">Task details</a>
+    <a href="#company">Company mgmt</a>
+    <a href="#createcompany">Create company</a>
+    <a href="#users">User mgmt</a>
+    <a href="#inviteuser">Invite user</a>
+    <a href="#reports">Reports</a>
+    <a href="#notifications">Notifications</a>
+    <a href="#profile">Profile</a>
+    <a href="#admin" class="role">Admin (platform)</a>
+  </div>
+</div>
+
+<!-- ================= SIGN IN ================= -->
+<div class="frame-wrap" id="signin">
+  <div class="frame-label"><span class="tag">Screen · Auth</span><div><h2>Sign in</h2><p>Entry point for auditors, company admins, and employees. Accounts are created by an admin — no self-serve signup.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/signin</span></div>
+    <div class="signin-shell">
+      <div class="signin-brand">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div>
+          <p class="signin-quote">"We cut our finding-to-resolution time by more than half once every audit task lived in one place."</p>
+          <p class="signin-quote who">— Head of Internal Audit, Meridian Group</p>
+        </div>
+      </div>
+      <div class="signin-form-wrap">
+        <div class="signin-form">
+          <h2>Welcome back</h2>
+          <p class="sub">Sign in to your organization's workspace</p>
+          <div class="field"><label>Work email</label><input type="text" placeholder="name@firm.com"/></div>
+          <div class="field"><label>Password</label><input type="password" placeholder="••••••••••"/></div>
+          <div class="signin-row"><label><input type="checkbox"/>Keep me signed in</label><a href="#">Forgot password?</a></div>
+          <button class="btn primary" style="width:100%;padding:11px;">Sign in</button>
+          <p class="signin-footnote">Don't have access yet? Ask your auditor or company admin to add you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ACCEPT INVITE ================= -->
+<div class="frame-wrap" id="acceptinvite">
+  <div class="frame-label"><span class="tag">Screen · Auth</span><div><h2>Accept invite &amp; set password</h2><p>What a new user sees when they click the link from their invite email.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/invite/accept?token=••••</span></div>
+    <div class="signin-shell">
+      <div class="signin-brand">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div>
+          <p class="signin-quote">You've been invited to join <b>Meridian Group</b> on AuditFlow as an <b>Employee</b>.</p>
+          <p class="signin-quote who">Invited by R. Sharma · a.verma@meridian.com</p>
+        </div>
+      </div>
+      <div class="signin-form-wrap">
+        <div class="signin-form">
+          <h2>Set your password</h2>
+          <p class="sub">This finishes setting up your account</p>
+          <div class="field"><label>Email</label><input type="text" value="a.verma@meridian.com" disabled style="color:var(--text-faint);"/></div>
+          <div class="field"><label>Create password</label><input type="password" placeholder="At least 10 characters"/></div>
+          <div class="field"><label>Confirm password</label><input type="password" placeholder="Re-enter password"/></div>
+          <button class="btn primary" style="width:100%;padding:11px;margin-top:6px;">Activate account</button>
+          <p class="signin-footnote">By continuing, you agree this account is for your use only and audit activity is logged.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div class="frame-wrap" id="dashboard">
+  <div class="frame-label"><span class="tag">Screen · Home</span><div><h2>Dashboard — standard view</h2><p>Central hub: status cards, this week's tasks, and a task status breakdown diagram. <b>Updated:</b> added the status-breakdown donut chart alongside the task list.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/dashboard</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item active"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item"><i class="ti ti-checklist"></i>Task<span class="nav-badge">7</span></div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div><h1>Dashboard</h1><p class="sub">Good morning, Rhea — here's where things stand today</p></div>
+          <div class="topbar-actions"><div class="search-box"><i class="ti ti-search"></i>Search task ID or description</div><div class="icon-btn"><i class="ti ti-bell"></i><span class="dot-badge"></span></div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#FFF7E8,#FFF1D6);border:1px solid #F3DFAE;border-radius:14px;padding:13px 18px;margin-bottom:20px;box-shadow:var(--shadow-sm);">
+          <div style="width:30px;height:30px;border-radius:8px;background:var(--warning-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-speakerphone" style="font-size:16px;color:var(--warning);"></i></div>
+          <p style="margin:0;font-size:12.5px;color:#7A5108;"><b>Q3 audit cycle closes July 15</b> — all open tasks for Meridian Group must be updated before then.</p>
+        </div>
+        <div class="stat-grid" style="display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:14px;margin-bottom:18px;">
+          <div class="card" style="background:linear-gradient(135deg,var(--navy-900) 0%, #24306A 60%, var(--accent-600) 130%);border:none;color:#fff;box-shadow:var(--shadow-md);"><p style="font-size:12px;color:rgba(255,255,255,.7);margin:0 0 8px;">Overdue tasks</p><p style="font-size:28px;font-weight:800;margin:0;">7</p><p style="font-size:11.5px;margin-top:8px;color:rgba(255,255,255,.85);font-weight:600;">↑ 2 since last week</p></div>
+          <div class="card"><p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Open</p><p style="font-size:28px;font-weight:800;margin:0;">48</p><p style="font-size:11.5px;margin-top:8px;color:var(--success);font-weight:600;">↓ 4% vs last week</p></div>
+          <div class="card"><p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">In progress</p><p style="font-size:28px;font-weight:800;margin:0;">31</p><p style="font-size:11.5px;margin-top:8px;color:var(--danger);font-weight:600;">↑ 12% vs last week</p></div>
+          <div class="card"><p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Closed this week</p><p style="font-size:28px;font-weight:800;margin:0;">19</p><p style="font-size:11.5px;margin-top:8px;color:var(--success);font-weight:600;">↓ steady</p></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;">
+          <div class="card">
+            <p class="card-title">This week's tasks <a href="#taskgrid">View all →</a></p>
+            <table class="grid-table">
+              <tr><th>Task ID</th><th>Title</th><th>Assigned to</th><th>Status</th></tr>
+              <tr><td class="tid">TSK-1042</td><td>Inventory count mismatch</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge progress">In progress</span></td></tr>
+              <tr><td class="tid">TSK-1041</td><td>Missing GST invoice, Q2</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+              <tr><td class="tid">TSK-1040</td><td>Vendor payment discrepancy</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge closed">Closed</span></td></tr>
+            </table>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;">
+            <p class="card-title">Task status breakdown</p>
+            <div style="display:flex;align-items:center;justify-content:center;position:relative;margin:4px 0 6px;">
+              <svg viewBox="0 0 120 120" style="width:150px;height:150px;">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#F0F2F7" stroke-width="14"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#8B93A8" stroke-width="14" stroke-dasharray="155.0 339.3" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--warning)" stroke-width="14" stroke-dasharray="100.1 339.3" stroke-dashoffset="-155.0" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--danger)" stroke-width="14" stroke-dasharray="22.7 339.3" stroke-dashoffset="-255.1" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--success)" stroke-width="14" stroke-dasharray="61.5 339.3" stroke-dashoffset="-277.8" transform="rotate(-90 60 60)"/>
+              </svg>
+              <div style="position:absolute;text-align:center;">
+                <p style="margin:0;font-size:20px;font-weight:800;">105</p>
+                <p style="margin:0;font-size:10px;color:var(--text-muted);">tasks tracked</p>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:#8B93A8;display:inline-block;"></span>Open</span><b>48 · 46%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--warning);display:inline-block;"></span>In progress</span><b>31 · 30%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--danger);display:inline-block;"></span>Overdue</span><b>7 · 7%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--success);display:inline-block;"></span>Closed this week</span><b>19 · 18%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD — EXECUTIVE VIEW ================= -->
+<div class="frame-wrap" id="dashboardexec">
+  <div class="frame-label"><span class="tag">Screen · Home</span><div><h2>Dashboard — executive view</h2><p>Toggle from Standard: trend over time, status mix, per-company health, and team workload — built for a portfolio-level read, not a single task queue. <b>Updated:</b> added a filter bar — every chart/diagram on this view re-renders against whatever filters are applied.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/dashboard?view=executive</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item active"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item"><i class="ti ti-checklist"></i>Task<span class="nav-badge">7</span></div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar">
+          <div><h1>Dashboard</h1><p class="sub">Portfolio-wide view across all 5 companies you audit</p></div>
+          <div class="topbar-actions">
+            <div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px;box-shadow:var(--shadow-sm);">
+              <span style="padding:6px 13px;font-size:12px;font-weight:600;color:var(--text-muted);border-radius:7px;">Standard</span>
+              <span style="padding:6px 13px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-600));border-radius:7px;">Executive</span>
+            </div>
+            <div class="icon-btn"><i class="ti ti-bell"></i><span class="dot-badge"></span></div>
+          </div>
+        </div>
+
+        <!-- Filters — drive every chart/diagram below -->
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+            <div class="field" style="margin-bottom:0;flex:1;min-width:140px;"><label>Company</label><select><option>All 5 companies</option><option>Meridian Group</option><option>Talwar Textiles</option><option>Bluepeak Retail</option><option>Kestrel Foods</option><option>Orion Logistics</option></select></div>
+            <div class="field" style="margin-bottom:0;flex:1;min-width:140px;"><label>Sub-company</label><select><option>All</option></select></div>
+            <div class="field" style="margin-bottom:0;flex:1;min-width:120px;"><label>Status</label><select><option>All statuses</option><option>Open</option><option>In progress</option><option>Overdue</option><option>Closed</option></select></div>
+            <div class="field" style="margin-bottom:0;flex:1;min-width:140px;"><label>Date range</label><select><option>Last 8 weeks</option><option>Last 30 days</option><option>Last quarter</option><option>Custom range</option></select></div>
+            <button class="btn primary" style="margin-bottom:0;"><i class="ti ti-filter"></i>Apply filters</button>
+          </div>
+          <p style="font-size:11.5px;color:var(--text-faint);margin:12px 0 0;display:flex;align-items:center;gap:6px;"><i class="ti ti-info-circle"></i>KPIs, trend, status mix, company health, risk list, and team workload below all recalculate against the filters applied here.</p>
+        </div>
+
+        <!-- KPI row -->
+        <div class="stat-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;">
+          <div class="card" style="background:linear-gradient(135deg,var(--navy-900) 0%, #24306A 60%, var(--accent-600) 130%);border:none;color:#fff;box-shadow:var(--shadow-md);">
+            <p style="font-size:12px;color:rgba(255,255,255,.7);margin:0 0 6px;">Total tasks tracked</p>
+            <p style="font-size:26px;font-weight:800;margin:0;">198</p>
+            <p style="font-size:11px;margin-top:8px;color:rgba(255,255,255,.85);font-weight:600;">across 5 companies</p>
+          </div>
+          <div class="card">
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Closure rate</p>
+            <p style="font-size:26px;font-weight:800;margin:0;">56%</p>
+            <div style="height:5px;border-radius:3px;background:#EEF0F5;margin-top:9px;overflow:hidden;"><div style="height:100%;width:56%;background:var(--success);"></div></div>
+          </div>
+          <div class="card">
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Avg. time to close</p>
+            <p style="font-size:26px;font-weight:800;margin:0;">4.6<span style="font-size:14px;font-weight:600;color:var(--text-muted);"> days</span></p>
+            <p style="font-size:11.5px;margin-top:8px;color:var(--success);font-weight:600;">↓ 0.8d vs last month</p>
+          </div>
+          <div class="card" style="border-color:#F3D6D9;">
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">At-risk tasks</p>
+            <p style="font-size:26px;font-weight:800;margin:0;color:var(--danger);">7</p>
+            <p style="font-size:11.5px;margin-top:8px;color:var(--danger);font-weight:600;">↑ 2 since last week</p>
+          </div>
+        </div>
+
+        <!-- Trend + donut -->
+        <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:14px;margin-bottom:14px;">
+          <div class="card">
+            <p class="card-title">Created vs. closed — last 8 weeks<span style="display:flex;gap:14px;font-weight:500;"><span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-muted);"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);display:inline-block;"></span>Created</span><span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-muted);"><span style="width:9px;height:9px;border-radius:2px;background:var(--success);display:inline-block;"></span>Closed</span></span></p>
+            <svg viewBox="0 0 460 190" style="width:100%;height:190px;">
+              <line x1="40" y1="10" x2="450" y2="10" stroke="#F0F2F7" stroke-width="1"/>
+              <line x1="40" y1="53.3" x2="450" y2="53.3" stroke="#F0F2F7" stroke-width="1"/>
+              <line x1="40" y1="96.7" x2="450" y2="96.7" stroke="#F0F2F7" stroke-width="1"/>
+              <line x1="40" y1="140" x2="450" y2="140" stroke="#E6E9F1" stroke-width="1"/>
+              <text x="30" y="14" font-size="9.5" fill="#9AA1B5" text-anchor="end">60</text>
+              <text x="30" y="57" font-size="9.5" fill="#9AA1B5" text-anchor="end">40</text>
+              <text x="30" y="100" font-size="9.5" fill="#9AA1B5" text-anchor="end">20</text>
+              <text x="30" y="143" font-size="9.5" fill="#9AA1B5" text-anchor="end">0</text>
+              <polygon points="40,140 40,66.3 98.6,77.2 157.1,51.2 215.7,57.7 274.3,42.5 332.9,31.7 391.4,49.0 450,92.3 450,140" fill="url(#gradCreated)" opacity="0.5"/>
+              <polyline points="40,66.3 98.6,77.2 157.1,51.2 215.7,57.7 274.3,42.5 332.9,31.7 391.4,49.0 450,92.3" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="40,79.3 98.6,72.8 157.1,85.8 215.7,62.0 274.3,53.3 332.9,44.7 391.4,57.7 450,98.8" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0"/>
+              <defs><linearGradient id="gradCreated" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3B6FED" stop-opacity="0.35"/><stop offset="100%" stop-color="#3B6FED" stop-opacity="0"/></linearGradient></defs>
+              <g font-size="9.5" fill="#9AA1B5" text-anchor="middle">
+                <text x="40" y="156">18 May</text><text x="98.6" y="156">25 May</text><text x="157.1" y="156">1 Jun</text><text x="215.7" y="156">8 Jun</text><text x="274.3" y="156">15 Jun</text><text x="332.9" y="156">22 Jun</text><text x="391.4" y="156">29 Jun</text><text x="450" y="156">This wk</text>
+              </g>
+            </svg>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;">
+            <p class="card-title">Status mix</p>
+            <div style="display:flex;align-items:center;justify-content:center;position:relative;margin:4px 0 6px;">
+              <svg viewBox="0 0 120 120" style="width:150px;height:150px;">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#F0F2F7" stroke-width="14"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--success)" stroke-width="14" stroke-dasharray="190.0 339.3" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#8B93A8" stroke-width="14" stroke-dasharray="81.4 339.3" stroke-dashoffset="-190.0" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--warning)" stroke-width="14" stroke-dasharray="54.3 339.3" stroke-dashoffset="-271.4" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--danger)" stroke-width="14" stroke-dasharray="13.6 339.3" stroke-dashoffset="-325.7" transform="rotate(-90 60 60)"/>
+              </svg>
+              <div style="position:absolute;text-align:center;">
+                <p style="margin:0;font-size:20px;font-weight:800;">198</p>
+                <p style="margin:0;font-size:10px;color:var(--text-muted);">total tasks</p>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--success);display:inline-block;"></span>Closed</span><b>112 · 56%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:#8B93A8;display:inline-block;"></span>Open</span><b>48 · 24%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--warning);display:inline-block;"></span>In progress</span><b>31 · 16%</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:2px;background:var(--danger);display:inline-block;"></span>Overdue</span><b>7 · 4%</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Company health + risk -->
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px;">
+          <div class="card">
+            <p class="card-title">Company health<a href="#company">View all →</a></p>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:700;">Meridian Group</span><span style="color:var(--text-muted);">142 tasks · <span style="color:var(--danger);font-weight:600;">3 overdue</span></span></div>
+                <div style="height:7px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:78%;background:var(--success);"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:700;">Talwar Textiles</span><span style="color:var(--text-muted);">64 tasks · <span style="color:var(--danger);font-weight:600;">2 overdue</span></span></div>
+                <div style="height:7px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:61%;background:var(--success);"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:700;">Bluepeak Retail</span><span style="color:var(--text-muted);">38 tasks · <span style="color:var(--danger);font-weight:700;">5 overdue</span></span></div>
+                <div style="height:7px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:45%;background:var(--warning);"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:700;">Kestrel Foods</span><span style="color:var(--text-muted);">29 tasks · <span style="color:var(--text-faint);">1 overdue</span></span></div>
+                <div style="height:7px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:82%;background:var(--success);"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="font-weight:700;">Orion Logistics</span><span style="color:var(--text-muted);">51 tasks · <span style="color:var(--text-faint);">0 overdue</span></span></div>
+                <div style="height:7px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:90%;background:var(--success);"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="card-title">Highest-risk tasks<a href="#taskgridfull">View all →</a></p>
+            <div style="display:flex;flex-direction:column;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0F2F7;"><div><p style="margin:0;font-size:12.5px;font-weight:600;">Missing GST invoice, Q2</p><p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);">Meridian Group · S. Nair</p></div><span class="badge overdue">9d late</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0F2F7;"><div><p style="margin:0;font-size:12.5px;font-weight:600;">Store-level cash count gap</p><p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);">Bluepeak Retail · M. Iyer</p></div><span class="badge overdue">7d late</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0F2F7;"><div><p style="margin:0;font-size:12.5px;font-weight:600;">POS reconciliation, Store 12</p><p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);">Bluepeak Retail · M. Iyer</p></div><span class="badge overdue">6d late</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0F2F7;"><div><p style="margin:0;font-size:12.5px;font-weight:600;">Vendor contract expiry check</p><p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);">Talwar Textiles · K. Patel</p></div><span class="badge overdue">4d late</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0F2F7;"><div><p style="margin:0;font-size:12.5px;font-weight:600;">Payroll variance, May cycle</p><p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);">Talwar Textiles · R. Bose</p></div><span class="badge overdue">2d late</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team workload -->
+        <div class="card">
+          <p class="card-title">Team workload — open tasks per assignee</p>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;"><div class="cell-person" style="width:110px;flex-shrink:0;"><div class="av">AV</div>A. Verma</div><div style="flex:1;height:8px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:88%;background:var(--accent);"></div></div><span style="font-size:12px;font-weight:700;width:20px;text-align:right;">22</span></div>
+            <div style="display:flex;align-items:center;gap:12px;"><div class="cell-person" style="width:110px;flex-shrink:0;"><div class="av">SN</div>S. Nair</div><div style="flex:1;height:8px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:72%;background:var(--accent);"></div></div><span style="font-size:12px;font-weight:700;width:20px;text-align:right;">18</span></div>
+            <div style="display:flex;align-items:center;gap:12px;"><div class="cell-person" style="width:110px;flex-shrink:0;"><div class="av">MI</div>M. Iyer</div><div style="flex:1;height:8px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:64%;background:var(--accent);"></div></div><span style="font-size:12px;font-weight:700;width:20px;text-align:right;">16</span></div>
+            <div style="display:flex;align-items:center;gap:12px;"><div class="cell-person" style="width:110px;flex-shrink:0;"><div class="av">KP</div>K. Patel</div><div style="flex:1;height:8px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:48%;background:var(--accent);"></div></div><span style="font-size:12px;font-weight:700;width:20px;text-align:right;">12</span></div>
+            <div style="display:flex;align-items:center;gap:12px;"><div class="cell-person" style="width:110px;flex-shrink:0;"><div class="av">RB</div>R. Bose</div><div style="flex:1;height:8px;border-radius:4px;background:#EEF0F5;overflow:hidden;"><div style="height:100%;width:36%;background:var(--accent);"></div></div><span style="font-size:12px;font-weight:700;width:20px;text-align:right;">9</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TASK GRID (full list) ================= -->
+<div class="frame-wrap" id="taskgrid">
+  <div class="frame-label"><span class="tag">Screen · Task</span><div><h2>Task — search, create, and grid</h2><p>Full task list with autocomplete search, filters, and the "Create new task" action (auditor only).</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/tasks</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item active"><i class="ti ti-checklist"></i>Task<span class="nav-badge">7</span></div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar">
+          <div><h1>Tasks</h1><p class="sub">All tasks across companies you audit — current week by default</p></div>
+          <div style="display:flex;gap:10px;"><button class="btn"><i class="ti ti-file-upload"></i>Bulk upload</button><button class="btn primary"><i class="ti ti-plus"></i>Create new task</button></div>
+        </div>
+        <div class="search-box" style="margin-bottom:14px;max-width:420px;"><i class="ti ti-search"></i>Search by task ID or description...</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="chip active-chip"><i class="ti ti-calendar"></i>This week</span>
+          <span class="chip"><i class="ti ti-building"></i>Company: All</span>
+          <span class="chip"><i class="ti ti-sitemap"></i>Sub-company: All</span>
+          <span class="chip"><i class="ti ti-user"></i>Assignee: All</span>
+          <span class="chip"><i class="ti ti-flag"></i>Status: All</span>
+        </div>
+        <div class="card">
+          <table class="grid-table">
+            <tr><th>Task ID</th><th>Title</th><th>Created on</th><th>Created by</th><th>Assigned to</th><th>Status</th></tr>
+            <tr><td class="tid">TSK-1042</td><td>Inventory count mismatch</td><td>29 Jun</td><td>R. Sharma</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge progress">In progress</span></td></tr>
+            <tr><td class="tid">TSK-1041</td><td>Missing GST invoice, Q2</td><td>28 Jun</td><td>R. Sharma</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1040</td><td>Vendor payment discrepancy</td><td>27 Jun</td><td>R. Sharma</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1039</td><td>Duplicate PO reference</td><td>27 Jun</td><td>R. Sharma</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge open">Open</span></td></tr>
+            <tr><td class="tid">TSK-1038</td><td>Unreconciled bank transfer</td><td>26 Jun</td><td>R. Sharma</td><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td><span class="badge progress">In progress</span></td></tr>
+          </table>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:var(--text-muted);">
+            <span>Showing 5 of 48</span>
+            <div style="display:flex;gap:6px;"><button class="btn sm">Prev</button><button class="btn sm">Next</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TASK GRID — FULL LIST ================= -->
+<div class="frame-wrap" id="taskgridfull">
+  <div class="frame-label"><span class="tag">Screen · Task</span><div><h2>Task — full list (all companies)</h2><p>Same grid, unfiltered and populated at realistic volume — shows density, cross-company scanning, and pagination at scale.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/tasks?range=all</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item active"><i class="ti ti-checklist"></i>Task<span class="nav-badge">7</span></div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar">
+          <div><h1>Tasks</h1><p class="sub">214 tasks across all 5 companies you audit</p></div>
+          <div style="display:flex;gap:10px;"><button class="btn"><i class="ti ti-file-upload"></i>Bulk upload</button><button class="btn primary"><i class="ti ti-plus"></i>Create new task</button></div>
+        </div>
+        <div class="search-box" style="margin-bottom:14px;max-width:420px;"><i class="ti ti-search"></i>Search by task ID or description...</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="chip active-chip"><i class="ti ti-calendar"></i>All time</span>
+          <span class="chip"><i class="ti ti-building"></i>Company: All</span>
+          <span class="chip"><i class="ti ti-sitemap"></i>Sub-company: All</span>
+          <span class="chip"><i class="ti ti-user"></i>Assignee: All</span>
+          <span class="chip"><i class="ti ti-flag"></i>Status: All</span>
+        </div>
+        <div class="card" style="padding:14px 20px 20px;">
+          <table class="grid-table">
+            <tr><th>Task ID</th><th>Title</th><th>Company</th><th>Created on</th><th>Assigned to</th><th>Status</th></tr>
+            <tr><td class="tid">TSK-1042</td><td>Inventory count mismatch</td><td>Meridian Group</td><td>29 Jun</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge progress">In progress</span></td></tr>
+            <tr><td class="tid">TSK-1041</td><td>Missing GST invoice, Q2</td><td>Meridian Group</td><td>28 Jun</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1040</td><td>Vendor payment discrepancy</td><td>Meridian Group</td><td>27 Jun</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1039</td><td>Duplicate PO reference</td><td>Talwar Textiles</td><td>27 Jun</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge open">Open</span></td></tr>
+            <tr><td class="tid">TSK-1038</td><td>Unreconciled bank transfer</td><td>Orion Logistics</td><td>26 Jun</td><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td><span class="badge progress">In progress</span></td></tr>
+            <tr><td class="tid">TSK-1037</td><td>Store-level cash count gap</td><td>Bluepeak Retail</td><td>26 Jun</td><td><div class="cell-person"><div class="av">MI</div>M. Iyer</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1036</td><td>Payroll variance, May cycle</td><td>Talwar Textiles</td><td>25 Jun</td><td><div class="cell-person"><div class="av">RB</div>R. Bose</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1035</td><td>Asset register out of date</td><td>Kestrel Foods</td><td>25 Jun</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1034</td><td>Freight invoice tax mismatch</td><td>Orion Logistics</td><td>24 Jun</td><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1033</td><td>POS reconciliation, Store 12</td><td>Bluepeak Retail</td><td>24 Jun</td><td><div class="cell-person"><div class="av">MI</div>M. Iyer</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1032</td><td>Vendor contract expiry check</td><td>Talwar Textiles</td><td>23 Jun</td><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td><span class="badge overdue">Overdue</span></td></tr>
+            <tr><td class="tid">TSK-1031</td><td>Warehouse stock adjustment</td><td>Orion Logistics</td><td>23 Jun</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1030</td><td>Petty cash voucher gap</td><td>Kestrel Foods</td><td>22 Jun</td><td><div class="cell-person"><div class="av">RB</div>R. Bose</div></td><td><span class="badge open">Open</span></td></tr>
+            <tr><td class="tid">TSK-1029</td><td>Customer refund without approval</td><td>Bluepeak Retail</td><td>22 Jun</td><td><div class="cell-person"><div class="av">MI</div>M. Iyer</div></td><td><span class="badge progress">In progress</span></td></tr>
+            <tr><td class="tid">TSK-1028</td><td>Fixed asset depreciation error</td><td>Meridian Group</td><td>21 Jun</td><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1027</td><td>Import duty documentation missing</td><td>Orion Logistics</td><td>21 Jun</td><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td><span class="badge open">Open</span></td></tr>
+            <tr><td class="tid">TSK-1026</td><td>Sales tax filing discrepancy</td><td>Talwar Textiles</td><td>20 Jun</td><td><div class="cell-person"><div class="av">RB</div>R. Bose</div></td><td><span class="badge closed">Closed</span></td></tr>
+            <tr><td class="tid">TSK-1025</td><td>Supplier master data duplicate</td><td>Kestrel Foods</td><td>20 Jun</td><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td><span class="badge closed">Closed</span></td></tr>
+          </table>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:var(--text-muted);">
+            <span>Showing 1–18 of 214</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="btn sm" disabled style="opacity:.5;">Prev</button>
+              <button class="btn sm" style="background:var(--accent-100);color:var(--accent-600);border-color:var(--accent);font-weight:700;">1</button>
+              <button class="btn sm">2</button>
+              <button class="btn sm">3</button>
+              <span style="padding:0 4px;">…</span>
+              <button class="btn sm">12</button>
+              <button class="btn sm">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TASK CREATION ================= -->
+<div class="frame-wrap" id="taskcreate">
+  <div class="frame-label"><span class="tag">Screen · Task</span><div><h2>Create new task</h2><p>Approved previously — shown here for context.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/tasks/new</span></div>
+    <div style="background:linear-gradient(180deg,#EEF1F8,#E4E9F5);padding:50px 30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:560px;background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);padding:26px 30px 24px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;"><h3 style="font-size:18px;font-weight:800;margin:0;">Create new task</h3><div class="icon-btn" style="width:30px;height:30px;"><i class="ti ti-x"></i></div></div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 22px;">Log a discrepancy found during audit and assign it for resolution.</p>
+        <div class="field"><label>Title</label><input type="text" placeholder="Inventory count mismatch — warehouse 3"/></div>
+        <div class="field"><label>Description</label><textarea placeholder="Describe the discrepancy, expected vs. actual figures." style="min-height:70px;"></textarea></div>
+        <div class="field field-row"><div><label>Company</label><select><option>Meridian Group</option></select></div><div><label>Sub-company</label><select><option>Warehouse 3</option></select></div></div>
+        <div class="field field-row"><div><label>Assign to</label><select><option>A. Verma</option></select></div><div><label>Priority</label><select><option>High</option></select></div></div>
+        <div class="field"><label>Due date</label><input type="text" placeholder="12 Jul 2026"/></div>
+
+        <div style="background:#F5F7FB;border-radius:9px;padding:10px 12px;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;">
+          <i class="ti ti-mail" style="font-size:14px;color:var(--text-muted);margin-top:1px;"></i>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:0;line-height:1.5;"><b style="color:var(--text);">Notification on save —</b> To: a.verma@meridian.com. CC: r.sharma@auditflow.io (you) + s.nair@meridian.com (A. Verma's reporting manager).</p>
+        </div>
+        <div style="border:1.5px dashed #CBD3E5;border-radius:14px;padding:20px;text-align:center;background:#FAFBFE;margin-bottom:20px;"><i class="ti ti-cloud-upload" style="font-size:22px;color:var(--accent);"></i><p style="font-size:12.5px;color:var(--text-muted);margin:8px 0 0;">Drag files here or click to upload</p></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;"><button class="btn">Cancel</button><button class="btn primary">Create task</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= BULK UPLOAD TASKS ================= -->
+<div class="frame-wrap" id="bulkupload">
+  <div class="frame-label"><span class="tag">Screen · Task</span><div><h2>Bulk create tasks from Excel</h2><p>For audits that surface many findings at once — download the template, fill it, upload it, and review before import. Auditor only.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/tasks/bulk-upload</span></div>
+    <div style="background:linear-gradient(180deg,#EEF1F8,#E4E9F5);padding:44px 30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:720px;background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);padding:26px 30px 24px;">
+
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;"><h3 style="font-size:18px;font-weight:800;margin:0;">Bulk create tasks</h3><div class="icon-btn" style="width:30px;height:30px;"><i class="ti ti-x"></i></div></div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 22px;">Use this for audits that surface many findings at once — e.g. the same checklist item across 30–40 sub-companies.</p>
+
+        <!-- Step 1 -->
+        <div style="display:flex;align-items:center;gap:12px;background:#F5F7FB;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-100);color:var(--accent-600);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+          <div style="flex:1;"><p style="margin:0;font-size:12.5px;font-weight:600;">Download the template</p><p style="margin:2px 0 0;font-size:11.5px;color:var(--text-muted);">Pre-filled with your companies, sub-companies, and active users for validation</p></div>
+          <button class="btn sm"><i class="ti ti-download"></i>Download .xlsx</button>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="margin-bottom:6px;display:flex;align-items:center;gap:12px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-100);color:var(--accent-600);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+          <p style="margin:0;font-size:12.5px;font-weight:600;">Upload your filled file</p>
+        </div>
+        <div style="border:1.5px dashed #CBD3E5;border-radius:14px;padding:18px;text-align:center;background:#FAFBFE;margin:0 0 20px 38px;">
+          <i class="ti ti-cloud-upload" style="font-size:20px;color:var(--accent);"></i>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 0;"><b style="color:var(--text);">q3_audit_findings.xlsx</b> — uploaded, validating rows...</p>
+        </div>
+
+        <!-- Step 3: preview -->
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-100);color:var(--accent-600);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+          <p style="margin:0;font-size:12.5px;font-weight:600;">Review before import</p>
+        </div>
+
+        <div style="margin:0 0 12px 38px;display:flex;gap:10px;">
+          <span class="badge active" style="font-size:11.5px;padding:5px 11px;">18 rows ready</span>
+          <span class="badge overdue" style="font-size:11.5px;padding:5px 11px;">2 rows need fixing</span>
+        </div>
+
+        <div style="margin:0 0 20px 38px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+          <table class="grid-table" style="font-size:12px;">
+            <tr><th>Row</th><th>Title</th><th>Sub-company</th><th>Assignee</th><th>Status</th></tr>
+            <tr><td>2</td><td>Inventory mismatch — SKU 4471</td><td>Warehouse 3</td><td>a.verma@meridian.com</td><td><span class="badge active">Valid</span></td></tr>
+            <tr><td>3</td><td>Missing GRN reference</td><td>Warehouse 1</td><td>a.verma@meridian.com</td><td><span class="badge active">Valid</span></td></tr>
+            <tr><td>4</td><td>Duplicate vendor entry</td><td>Retail — North</td><td>s.nair@meridian.com</td><td><span class="badge active">Valid</span></td></tr>
+            <tr><td>5</td><td>Freight cost variance</td><td>Depot — East</td><td style="color:var(--danger);">j.tann@kestrel.com</td><td><span class="badge overdue">No matching user</span></td></tr>
+            <tr><td>6</td><td>—</td><td>Warehouse 12</td><td>a.verma@meridian.com</td><td><span class="badge overdue">Title required</span></td></tr>
+          </table>
+        </div>
+
+        <div style="background:#F5F7FB;border-radius:9px;padding:10px 12px;margin:0 0 20px 38px;display:flex;gap:8px;align-items:flex-start;">
+          <i class="ti ti-info-circle" style="font-size:14px;color:var(--text-muted);margin-top:1px;"></i>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:0;line-height:1.5;">Rows that need fixing are skipped on import — they won't block the 18 valid rows. Fix and re-upload just those rows afterward if needed.</p>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="btn">Cancel</button>
+          <button class="btn primary">Import 18 tasks</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TASK DETAILS ================= -->
+<div class="frame-wrap" id="taskdetails">
+  <div class="frame-label"><span class="tag">Screen · Task</span><div><h2>Task details</h2><p>Approved previously — shown here for context.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/tasks/TSK-1042</span></div>
+    <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;padding:26px 30px;background:var(--bg);" class="details-grid">
+      <div>
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><span style="font-size:12px;font-weight:700;color:var(--accent-600);">TSK-1042</span><span class="badge progress">In progress</span><span class="badge open">High priority</span></div>
+          <p style="font-size:19px;font-weight:800;margin:0 0 12px;">Inventory count mismatch — warehouse 3</p>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.65;margin:0 0 16px;">Physical stock count on 28 Jun showed 1,240 units of SKU-4471, against 1,310 in the system. 70-unit variance not explained by recorded transfers or write-offs.</p>
+          <span style="display:inline-flex;align-items:center;gap:7px;background:#F5F7FB;border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:500;margin-right:8px;"><i class="ti ti-file-spreadsheet" style="color:var(--text-muted);"></i>stock_count_q2.xlsx</span>
+        </div>
+        <div class="card">
+          <p class="card-title">Comments and activity</p>
+          <div style="display:flex;gap:11px;margin-bottom:18px;"><div class="avatar" style="width:32px;height:32px;font-size:11.5px;">RS</div><div><div style="display:flex;gap:8px;align-items:baseline;"><span style="font-size:12.5px;font-weight:700;">R. Sharma</span><span style="font-size:11px;color:var(--text-faint);">Auditor · 3 days ago</span></div><p style="font-size:12.5px;margin:5px 0 0;">Flagging this as high priority.</p></div></div>
+          <textarea placeholder="Add a comment..." style="width:100%;min-height:56px;border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:12.5px;background:#FBFCFE;"></textarea>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px;"><p class="card-title" style="margin-bottom:12px;">Details</p>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;"><span style="color:var(--text-muted);">Company</span><span style="font-weight:600;">Meridian Group</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-top:1px solid #F1F3F8;"><span style="color:var(--text-muted);">Assigned to</span><span style="font-weight:600;">A. Verma</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-top:1px solid #F1F3F8;"><span style="color:var(--text-muted);">Due date</span><span style="font-weight:600;">10 Jul 2026</span></div>
+        </div>
+        <div class="card"><p class="card-title" style="margin-bottom:12px;">Audit timeline</p>
+          <div style="display:flex;gap:10px;margin-bottom:12px;"><div style="width:24px;height:24px;border-radius:50%;background:var(--accent-100);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-refresh" style="font-size:12px;color:var(--accent-600);"></i></div><p style="margin:0;font-size:11.5px;color:var(--text-muted);">Status changed to In progress<br><span style="color:var(--text-faint);">2 days ago</span></p></div>
+          <div style="display:flex;gap:10px;"><div style="width:24px;height:24px;border-radius:50%;background:var(--accent-100);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-plus" style="font-size:12px;color:var(--accent-600);"></i></div><p style="margin:0;font-size:11.5px;color:var(--text-muted);">Task created by R. Sharma<br><span style="color:var(--text-faint);">3 days ago</span></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= COMPANY MANAGEMENT ================= -->
+<div class="frame-wrap" id="company">
+  <div class="frame-label"><span class="tag">Screen · Manage</span><div><h2>Company management</h2><p>Auditor creates and manages companies and their sub-companies.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/companies</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item"><i class="ti ti-checklist"></i>Task</div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item active"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div><h1>Company management</h1><p class="sub">3 companies · 61 sub-companies total</p></div><button class="btn primary"><i class="ti ti-plus"></i>Add company</button></div>
+        <div class="card">
+          <div class="company-row" style="border-top:none;padding-top:6px;">
+            <div class="co-icon"><i class="ti ti-building-skyscraper"></i></div>
+            <div style="flex:1;"><p class="co-name">Meridian Group</p><p class="co-meta">32 sub-companies · 14 users · onboarded 12 Jan 2026</p>
+              <div class="sub-list"><span class="sub-chip">Warehouse 1</span><span class="sub-chip">Warehouse 3</span><span class="sub-chip">Retail — North</span><span class="sub-chip">+29 more</span></div>
+            </div>
+            <button class="btn sm"><i class="ti ti-settings"></i>Manage</button>
+          </div>
+          <div class="company-row">
+            <div class="co-icon"><i class="ti ti-building-store"></i></div>
+            <div style="flex:1;"><p class="co-name">Harborview Retail</p><p class="co-meta">18 sub-companies · 9 users · onboarded 3 Mar 2026</p>
+              <div class="sub-list"><span class="sub-chip">Store — Downtown</span><span class="sub-chip">Store — Mall Rd</span><span class="sub-chip">+16 more</span></div>
+            </div>
+            <button class="btn sm"><i class="ti ti-settings"></i>Manage</button>
+          </div>
+          <div class="company-row">
+            <div class="co-icon"><i class="ti ti-truck"></i></div>
+            <div style="flex:1;"><p class="co-name">Kestrel Logistics</p><p class="co-meta">11 sub-companies · 6 users · onboarded 19 Apr 2026</p>
+              <div class="sub-list"><span class="sub-chip">Depot — East</span><span class="sub-chip">Depot — West</span><span class="sub-chip">+9 more</span></div>
+            </div>
+            <button class="btn sm"><i class="ti ti-settings"></i>Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CREATE COMPANY / SUB-COMPANY ================= -->
+<div class="frame-wrap" id="createcompany">
+  <div class="frame-label"><span class="tag">Screen · Manage</span><div><h2>Add company &amp; sub-companies</h2><p>Auditor creates a new company and adds its sub-companies in one flow — sub-companies can be added inline, no separate screen needed.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/companies/new</span></div>
+    <div style="background:linear-gradient(180deg,#EEF1F8,#E4E9F5);padding:50px 30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:580px;background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);padding:26px 30px 24px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;"><h3 style="font-size:18px;font-weight:800;margin:0;">Add company</h3><div class="icon-btn" style="width:30px;height:30px;"><i class="ti ti-x"></i></div></div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 22px;">Create the company record, then add its sub-companies below. You can add more sub-companies later from the company's page.</p>
+
+        <div class="field field-row">
+          <div><label>Company name</label><input type="text" placeholder="Meridian Group"/></div>
+          <div><label>Industry <span style="font-weight:400;color:var(--text-faint);">(optional)</span></label><input type="text" placeholder="Retail & distribution"/></div>
+        </div>
+        <div class="field"><label>Primary contact email</label><input type="text" placeholder="contact@meridiangroup.com"/></div>
+
+        <div style="border-top:1px solid var(--border);margin:20px 0 16px;padding-top:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px;">Sub-companies</label>
+
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+            <input type="text" placeholder="Warehouse 1" style="flex:1;font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#FBFCFE;"/>
+            <div class="icon-btn" style="width:34px;height:34px;flex-shrink:0;"><i class="ti ti-trash" style="font-size:15px;"></i></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+            <input type="text" placeholder="Warehouse 3" style="flex:1;font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#FBFCFE;"/>
+            <div class="icon-btn" style="width:34px;height:34px;flex-shrink:0;"><i class="ti ti-trash" style="font-size:15px;"></i></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+            <input type="text" placeholder="Retail — North" style="flex:1;font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#FBFCFE;"/>
+            <div class="icon-btn" style="width:34px;height:34px;flex-shrink:0;"><i class="ti ti-trash" style="font-size:15px;"></i></div>
+          </div>
+
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--accent-600);cursor:pointer;"><i class="ti ti-circle-plus" style="font-size:16px;"></i>Add another sub-company</span>
+
+          <div style="background:#F5F7FB;border-radius:9px;padding:10px 12px;margin-top:14px;display:flex;gap:8px;align-items:flex-start;">
+            <i class="ti ti-info-circle" style="font-size:14px;color:var(--text-muted);margin-top:1px;"></i>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0;line-height:1.5;">Auditing 30–40 sub-companies at once? You can also bulk-import via CSV instead of adding rows one by one.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="btn">Cancel</button>
+          <button class="btn primary">Create company</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= USER MANAGEMENT ================= -->
+<div class="frame-wrap" id="users">
+  <div class="frame-label"><span class="tag">Screen · Manage</span><div><h2>User management</h2><p>Create users and map them to a company or sub-company. Company admins can self-serve within their own org. <b>Updated:</b> new "Reporting manager" column — captured on the Invite user form — drives the CC list on task notification emails; row "···" menu offers Deactivate user and Resend activation link for expired invites.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/users</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item"><i class="ti ti-checklist"></i>Task</div>
+          <div class="nav-item"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item active"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div><h1>Users</h1><p class="sub">29 users across 3 companies</p></div><button class="btn primary"><i class="ti ti-user-plus"></i>Invite user</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="chip active-chip"><i class="ti ti-users"></i>All roles</span>
+          <span class="chip"><i class="ti ti-building"></i>Company: All</span>
+          <span class="chip"><i class="ti ti-circle-check"></i>Status: All</span>
+        </div>
+        <div class="card">
+          <table class="grid-table">
+            <tr><th>Name</th><th>Email</th><th>Role</th><th>Company / Sub-company</th><th>Reporting manager</th><th>Status</th><th></th></tr>
+            <tr><td><div class="cell-person"><div class="av">AV</div>A. Verma</div></td><td>a.verma@meridian.com</td><td>Employee</td><td>Meridian Group — Warehouse 3</td><td>S. Nair</td><td><span class="badge active">Active</span></td>
+              <td style="position:relative;width:36px;">
+                <div class="menu-btn"><i class="ti ti-dots"></i></div>
+              </td>
+            </tr>
+            <tr><td><div class="cell-person"><div class="av">SN</div>S. Nair</div></td><td>s.nair@meridian.com</td><td>Employee</td><td>Meridian Group — Retail North</td><td style="color:var(--text-faint);">—</td><td><span class="badge active">Active</span></td>
+              <td style="position:relative;width:36px;">
+                <div class="menu-btn"><i class="ti ti-dots"></i></div>
+              </td>
+            </tr>
+            <tr><td><div class="cell-person"><div class="av">KP</div>K. Patel</div></td><td>k.patel@harborview.com</td><td>Company admin</td><td>Harborview Retail</td><td style="color:var(--text-faint);">—</td><td><span class="badge active">Active</span></td>
+              <td style="position:relative;width:36px;">
+                <div class="menu-btn"><i class="ti ti-dots"></i></div>
+              </td>
+            </tr>
+            <tr><td><div class="cell-person"><div class="av">JT</div>J. Tan</div></td><td>j.tan@kestrel.com</td><td>Employee</td><td>Kestrel Logistics — Depot East</td><td>d.rao@kestrel.com <span style="color:var(--text-faint);font-weight:400;">(external)</span></td><td><span class="badge invited">Invited</span></td>
+              <td style="position:relative;width:36px;">
+                <div class="menu-btn is-open"><i class="ti ti-dots"></i></div>
+                <div class="row-menu">
+                  <div class="menu-item"><i class="ti ti-send"></i>Resend activation link</div>
+                  <div class="menu-divider"></div>
+                  <div class="menu-item danger"><i class="ti ti-user-off"></i>Deactivate user</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-faint);margin:10px 2px 0;display:flex;align-items:center;gap:6px;"><i class="ti ti-info-circle"></i>"···" menu shown open on J. Tan (Invited) as an example. "Resend activation link" appears for Invited users whose link may have expired; "Deactivate user" is available on every row.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= INVITE USER ================= -->
+<div class="frame-wrap" id="inviteuser">
+  <div class="frame-label"><span class="tag">Screen · Manage</span><div><h2>Invite user</h2><p>Create a user and map them to a company (and optionally specific sub-companies). Fields adapt based on the role chosen.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/users/new</span></div>
+    <div style="background:linear-gradient(180deg,#EEF1F8,#E4E9F5);padding:50px 30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:560px;background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);padding:26px 30px 24px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;"><h3 style="font-size:18px;font-weight:800;margin:0;">Invite user</h3><div class="icon-btn" style="width:30px;height:30px;"><i class="ti ti-x"></i></div></div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 22px;">They'll get an email invite to set their password and sign in.</p>
+
+        <div class="field field-row">
+          <div><label>Full name</label><input type="text" placeholder="Ananya Verma"/></div>
+          <div><label>Email</label><input type="text" placeholder="a.verma@meridian.com"/></div>
+        </div>
+
+        <div class="field">
+          <label>Role</label>
+          <div style="display:flex;gap:8px;">
+            <span class="chip" style="cursor:pointer;"><i class="ti ti-user"></i>Employee</span>
+            <span class="chip active-chip" style="cursor:pointer;"><i class="ti ti-user-cog"></i>Company admin</span>
+            <span class="chip" style="cursor:pointer;"><i class="ti ti-user-shield"></i>Auditor</span>
+          </div>
+        </div>
+
+        <div class="field field-row">
+          <div><label>Company</label><select><option>Meridian Group</option></select></div>
+          <div>
+            <label>Sub-company access <span style="font-weight:400;color:var(--text-faint);">(optional)</span></label>
+            <select><option>All sub-companies</option></select>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:6px 0 16px;padding-top:16px;">
+          <div class="field" style="margin-bottom:8px;">
+            <label>Reporting manager <span style="font-weight:400;color:var(--text-faint);">(optional)</span></label>
+            <select><option>S. Nair — Meridian Group</option><option>K. Patel — Harborview Retail</option><option>— None —</option></select>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent-600);cursor:pointer;margin-bottom:12px;"><i class="ti ti-mail-forward" style="font-size:15px;"></i>Not in the system? Enter their email manually instead</span>
+          <div style="background:#F5F7FB;border-radius:9px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start;">
+            <i class="ti ti-info-circle" style="font-size:14px;color:var(--text-muted);margin-top:1px;"></i>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0;line-height:1.5;">When a task is assigned to this person, notification emails go <b style="color:var(--text);">To:</b> their email, <b style="color:var(--text);">CC:</b> the auditor who created the task, and this reporting manager (if set). Pick anyone already in AuditFlow, or type an external email for managers without a login.</p>
+          </div>
+        </div>
+
+        <div style="background:#F5F7FB;border-radius:9px;padding:10px 12px;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;">
+          <i class="ti ti-info-circle" style="font-size:14px;color:var(--text-muted);margin-top:1px;"></i>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:0;line-height:1.5;"><b style="color:var(--text);">Company admin</b> can manage users within Meridian Group and view all its tasks, but cannot create tasks. Leaving sub-company access as "All" means they'll see tasks across every sub-company under this company.</p>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="btn">Cancel</button>
+          <button class="btn primary"><i class="ti ti-send"></i>Send invite</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= REPORTS ================= -->
+<div class="frame-wrap" id="reports">
+  <div class="frame-label"><span class="tag">Screen · Reports</span><div><h2>Reports</h2><p>Filterable report builder with export to Excel or PDF.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/reports</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark"><i class="ti ti-shield-check"></i></div><span>AuditFlow</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Workspace</div>
+          <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+          <div class="nav-item"><i class="ti ti-checklist"></i>Task</div>
+          <div class="nav-item active"><i class="ti ti-chart-bar"></i>Reports</div>
+        </div>
+        <div class="nav-group"><div class="nav-eyebrow">Manage</div>
+          <div class="nav-item"><i class="ti ti-building"></i>Company mgmt</div>
+          <div class="nav-item"><i class="ti ti-users"></i>Users</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar">RS</div><div class="who"><p class="name">R. Sharma</p><p class="role">Auditor</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div><h1>Reports</h1><p class="sub">Filter and export task data for audit files or client deliverables</p></div>
+          <div style="display:flex;gap:10px;"><button class="btn"><i class="ti ti-file-spreadsheet"></i>Export Excel</button><button class="btn"><i class="ti ti-file-text"></i>Export PDF</button></div>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="field-row" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+            <div class="field" style="margin-bottom:0;"><label>Company</label><select><option>All</option></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Sub-company</label><select><option>All</option></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Assignee</label><select><option>All</option></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Status</label><select><option>All</option></select></div>
+            <div class="field" style="margin-bottom:0;"><label>Date range</label><input type="text" placeholder="Last 30 days"/></div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-title">124 results</p>
+          <table class="grid-table">
+            <tr><th>Task ID</th><th>Company</th><th>Title</th><th>Assigned to</th><th>Status</th><th>Closed on</th></tr>
+            <tr><td class="tid">TSK-1040</td><td>Meridian Group</td><td>Vendor payment discrepancy</td><td>A. Verma</td><td><span class="badge closed">Closed</span></td><td>1 Jul</td></tr>
+            <tr><td class="tid">TSK-1033</td><td>Harborview Retail</td><td>POS reconciliation gap</td><td>K. Patel</td><td><span class="badge closed">Closed</span></td><td>28 Jun</td></tr>
+            <tr><td class="tid">TSK-1029</td><td>Kestrel Logistics</td><td>Fuel expense variance</td><td>J. Tan</td><td><span class="badge closed">Closed</span></td><td>24 Jun</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= NOTIFICATIONS ================= -->
+<div class="frame-wrap" id="notifications">
+  <div class="frame-label"><span class="tag">Screen · Notifications</span><div><h2>Notification center</h2><p>In-app notifications for task assignment, status changes, and comments.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/notifications</span></div>
+    <div style="background:var(--bg);padding:30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:520px;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><p style="font-size:16px;font-weight:800;margin:0;">Notifications</p><span style="font-size:12px;font-weight:600;color:var(--accent-600);">Mark all as read</span></div>
+          <div class="notif-day">Today</div>
+          <div class="notif-item unread"><div class="dot blue"><i class="ti ti-message"></i></div><div><p><b>A. Verma</b> commented on <b>TSK-1042</b></p><p class="when">10 minutes ago</p></div></div>
+          <div class="notif-item unread"><div class="dot amber"><i class="ti ti-refresh"></i></div><div><p><b>TSK-1041</b> status changed to <b>Overdue</b></p><p class="when">2 hours ago</p></div></div>
+          <div class="notif-day">Earlier</div>
+          <div class="notif-item"><div class="dot green"><i class="ti ti-circle-check"></i></div><div><p><b>TSK-1040</b> was closed by R. Sharma</p><p class="when">Yesterday</p></div></div>
+          <div class="notif-item"><div class="dot blue"><i class="ti ti-user-plus"></i></div><div><p>You were assigned to <b>TSK-1039</b></p><p class="when">2 days ago</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PROFILE ================= -->
+<div class="frame-wrap" id="profile">
+  <div class="frame-label"><span class="tag">Screen · Profile</span><div><h2>User profile</h2><p>Theme, notification preferences, and logout — standard across all roles.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">app.auditflow.io/profile</span></div>
+    <div style="background:var(--bg);padding:30px;display:flex;justify-content:center;">
+      <div style="width:100%;max-width:480px;">
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;"><div class="avatar" style="width:52px;height:52px;font-size:16px;">RS</div><div><p style="font-size:15px;font-weight:700;margin:0;">Rhea Sharma</p><p style="font-size:12.5px;color:var(--text-muted);margin:2px 0 0;">r.sharma@auditfirm.com · Auditor</p></div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <p class="card-title" style="margin-bottom:14px;">Appearance</p>
+          <div style="display:flex;gap:8px;">
+            <span class="chip active-chip"><i class="ti ti-sun"></i>Light</span>
+            <span class="chip"><i class="ti ti-moon"></i>Dark</span>
+            <span class="chip"><i class="ti ti-device-desktop"></i>System</span>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <p class="card-title" style="margin-bottom:14px;">Notifications</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;"><span style="font-size:12.5px;">Email notifications</span><div class="toggle on"><div class="knob"></div></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #F1F3F8;"><span style="font-size:12.5px;">In-app notifications</span><div class="toggle on"><div class="knob"></div></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #F1F3F8;"><span style="font-size:12.5px;">Daily digest instead of instant email</span><div class="toggle"><div class="knob"></div></div></div>
+        </div>
+        <button class="btn" style="width:100%;color:var(--danger);"><i class="ti ti-logout"></i>Log out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADMIN (PLATFORM) ================= -->
+<div class="frame-wrap" id="admin">
+  <div class="frame-label"><span class="tag admin">Screen · Platform admin</span><div><h2>Admin — auditor accounts</h2><p>The product owner's internal team creates and manages auditor firm accounts. Not visible to auditors or employees.</p></div></div>
+  <div class="browser-chrome">
+    <div class="chrome-bar"><span class="chrome-dot" style="background:#F45F54;"></span><span class="chrome-dot" style="background:#F6BC33;"></span><span class="chrome-dot" style="background:#3EBD5B;"></span><span class="url">admin.auditflow.io/tenants</span></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand"><div class="brand-mark" style="background:linear-gradient(135deg,#B4700B,#E0A340);"><i class="ti ti-lock"></i></div><span>Platform admin</span></div>
+        <div class="nav-group"><div class="nav-eyebrow">Platform</div>
+          <div class="nav-item active"><i class="ti ti-building-bank"></i>Auditor accounts</div>
+          <div class="nav-item"><i class="ti ti-activity"></i>System health</div>
+          <div class="nav-item"><i class="ti ti-history"></i>Audit log</div>
+        </div>
+        <div class="sidebar-footer"><div class="avatar" style="background:linear-gradient(135deg,#B4700B,#E0A340);">PA</div><div class="who"><p class="name">Platform admin</p><p class="role">Internal</p></div></div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div><h1>Auditor accounts</h1><p class="sub">12 firms on the platform</p></div><button class="btn primary" style="background:linear-gradient(135deg,#B4700B,#E0A340);"><i class="ti ti-plus"></i>Create auditor account</button></div>
+        <div class="card">
+          <table class="grid-table">
+            <tr><th>Firm</th><th>Primary contact</th><th>Companies</th><th>Users</th><th>Plan</th><th>Status</th></tr>
+            <tr><td style="font-weight:700;">Sharma & Associates</td><td>r.sharma@auditfirm.com</td><td>3</td><td>29</td><td>Growth</td><td><span class="badge active">Active</span></td></tr>
+            <tr><td style="font-weight:700;">Nair Audit Partners</td><td>contact@nairaudit.com</td><td>7</td><td>64</td><td>Scale</td><td><span class="badge active">Active</span></td></tr>
+            <tr><td style="font-weight:700;">Patel & Co.</td><td>admin@patelco.com</td><td>2</td><td>11</td><td>Starter</td><td><span class="badge invited">Onboarding</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
