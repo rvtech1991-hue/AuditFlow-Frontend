@@ -94,7 +94,7 @@ function StandardDashboard() {
   const breakdown = statusBreakdownQuery.data;
   const announcement = announcementsQuery.data?.[0];
   // The stat cards and donut legend show system-wide counts (from /dashboard/summary and
-  // /dashboard/status-breakdown), not just the 5 rows in the "This week's tasks" preview below —
+  // /dashboard/status-breakdown), not just the 5 rows in the "Recently created tasks" preview below —
   // so filtering navigates to the full Tasks grid (which already supports a ?status= deep link)
   // rather than filtering the tiny preview table, where the matching rows usually aren't present.
   const goToStatus = (status: DashboardTask["status"]) => navigate(`/tasks/all?status=${status}`);
@@ -127,11 +127,11 @@ function StandardDashboard() {
       </div>
 
       <div className="dashboard-two-col">
-        <Card title="This week's tasks">
+        <Card title="Recently created tasks">
           <div className="dashboard-week-table">
             <Table<DashboardTask>
               rows={weeklyTasks}
-              emptyState="No tasks this week."
+              emptyState="No tasks created this week."
               columns={[
                 { key: "id", header: "Task ID", render: (task) => <button className="link-button nowrap-cell" type="button" onClick={() => navigate(`/tasks/${task.id}`)}>{task.taskNumber}</button> },
                 { key: "title", header: "Title", render: (task) => <Tooltip label={task.title}><span className="ellipsis-cell">{task.title}</span></Tooltip> },

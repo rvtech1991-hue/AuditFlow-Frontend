@@ -13,7 +13,7 @@ export const statusLabels: Record<Status, string> = {
 };
 
 export const statusStyles: Record<Status, { color: string; background: string }> = {
-  open: { color: "var(--text-muted)", background: "#F2F4F8" },
+  open: { color: "var(--text-muted)", background: "var(--surface-subtle)" },
   progress: { color: "var(--warning)", background: "var(--warning-bg)" },
   resolved: { color: "var(--accent-600)", background: "var(--accent-100)" },
   reopened: { color: "var(--warning)", background: "var(--warning-bg)" },
@@ -21,5 +21,5 @@ export const statusStyles: Record<Status, { color: string; background: string }>
   closed: { color: "var(--success)", background: "var(--success-bg)" },
   active: { color: "var(--success)", background: "var(--success-bg)" },
   invited: { color: "var(--accent-600)", background: "var(--accent-100)" },
-  deactivated: { color: "var(--text-muted)", background: "#EEF0F5" },
+  deactivated: { color: "var(--text-muted)", background: "var(--surface-subtle)" },
 };

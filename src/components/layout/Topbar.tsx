@@ -22,8 +22,9 @@ export function Topbar() {
   const isDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/executive";
   const canUseExecutive = role === "Auditor" || role === "Company admin";
   const executiveActive = location.pathname === "/dashboard/executive" || new URLSearchParams(location.search).get("view") === "executive";
-  // Polling is a fine fallback for v1 (BACKEND_INTEGRATION_GUIDE SS8) — the SignalR hub is optional.
-  const unreadCountQuery = useQuery({ queryKey: ["notifications", "unread-count"], queryFn: getUnreadCount, refetchInterval: 30_000 });
+  // SignalR (src/lib/notificationHub.ts) pushes live updates and invalidates this query instantly;
+  // this poll is just a passive backstop in case a connection drops silently.
+  const unreadCountQuery = useQuery({ queryKey: ["notifications", "unread-count"], queryFn: getUnreadCount, refetchInterval: 300_000 });
   const unreadCount = unreadCountQuery.data ?? 0;
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);

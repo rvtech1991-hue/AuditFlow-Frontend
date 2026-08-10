@@ -7,6 +7,7 @@ import { getAccessToken } from "./tokenStorage";
 import { decodeAccessToken } from "./jwt";
 import { mapBackendRole } from "./roleMapping";
 import { queryClient } from "./queryClient";
+import { connectNotificationHub, disconnectNotificationHub } from "./notificationHub";
 import { mockUser } from "../mock-data/auth";
 import type { Role, User } from "../types";
 
@@ -77,6 +78,18 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
     });
   }, []);
+
+  // Live real-time notifications ride the same auth session as the REST API — connect once
+  // logged in, tear down on logout so a stale connection doesn't leak across users.
+  useEffect(() => {
+    if (API_MODE !== "live") return;
+    if (isAuthenticated) {
+      connectNotificationHub();
+    } else {
+      disconnectNotificationHub();
+    }
+    return () => disconnectNotificationHub();
+  }, [isAuthenticated]);
 
   const setRole = (nextRole: Role) => {
     if (API_MODE !== "mock") return;
