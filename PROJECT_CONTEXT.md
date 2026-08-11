@@ -4,7 +4,7 @@
 >
 > Companion docs: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (diagrams/flows) and [`README.md`](./README.md) (quickstart). Backend-side equivalents live in the backend repo (see [Repos & Docs](#repos--docs) below).
 
-Last synthesized: 2026-08-07, against frontend `main` and backend commit `72e2130` (per the integration guide). Re-verify anything load-bearing against current code before relying on it long-term — this is a snapshot, not a live source.
+Last synthesized: 2026-08-07, spot-updated 2026-08-11 after a live multi-account QA/testing pass (session-storage auth isolation, tenant-scoping consistency fixes, Platform admin Audit log page + Auditor account status controls, executive dashboard custom date range — see inline dated notes throughout for specifics). Against frontend `main` and backend commit `72e2130` (per the integration guide) as a baseline. Re-verify anything load-bearing against current code before relying on it long-term — this is a snapshot, not a live source.
 
 ---
 
@@ -49,18 +49,17 @@ Two separate git repos, developed together:
 | **Frontend** (this repo) | `AuditFlow-Frontend/AuditFlow-Frontend` | React 19 + Vite 6 SPA |
 | **Backend** | `AuditFlow-Backend/AuditFlow-Backend/AuditFlow-Backend` | .NET 8 Clean Architecture |
 
-**Shared docs** (one level up from both repos): `Project_Docs/Audit_Flow_Docs/`
+**Shared docs** — live in this repo's `Documents/` folder (moved in-project 2026-08-12; no longer depend on any location outside either repo):
 - `1 - AuditFlow-Requirements.docx` — original business requirements, screen-by-screen ("Module N" numbering referenced in frontend code comments).
 - `2 - API_SPECIFICATION.md` — **superseded**, predates route versioning; kept for history only.
 - `3 - mockup-audit-saas-all-screens.html` — visual mockup the UI was built against.
-- `4 - BACKEND_INTEGRATION_GUIDE.md` — **the single most important cross-repo doc.** Written 2026-08-05 against backend commit `72e2130`. Documents exact JWT claim names, the numeric-enum-over-the-wire quirk, the ProblemDetails error envelope, a full endpoint↔screen mapping, the mock→live cutover strategy, and a list of deliberate decisions not to re-litigate. **Treat as source of truth over any other doc when they disagree.** Frontend `services/*.ts` files cite this doc by section number (§5, §7, §8...) throughout — read those comments in place before assuming a contract.
+- `4 - BACKEND_INTEGRATION_GUIDE.md` — **the single most important cross-repo doc.** Written 2026-08-05 against backend commit `72e2130`, amended 2026-08-12 (§13) after a live multi-account QA pass. Documents exact JWT claim names, the numeric-enum-over-the-wire quirk, the ProblemDetails error envelope, a full endpoint↔screen mapping, the mock→live cutover strategy, and a list of deliberate decisions not to re-litigate. **Treat as source of truth over any other doc when they disagree.** Frontend `services/*.ts` files cite this doc by section number (§5, §7, §8...) throughout — read those comments in place before assuming a contract.
 - `audit-saas-blueprint.md` — product vision / role matrix / non-functional requirements source.
+- `ArchitectureFlow.md`, `DatabaseStructure.md`, `AuthTestingGuide.md` — a "which files to open for module X" lookup table, full schema/indexes/module→table map, and a hands-on curl+SQL auth testing walkthrough. Mirrored from the backend repo (kept in sync manually, not a live source — re-check against the backend repo if schema accuracy matters).
 
-**Backend repo root docs** (also worth knowing about, read on demand rather than duplicating here):
-- `ArchitectureFlow.md` — a lookup table of "which files to open for module X"; genuinely useful, reuse rather than re-deriving.
-- `DatabaseStructure.md` — full schema, indexes, module→table map.
+**Backend repo root docs** (not mirrored here, read directly on demand):
 - `AuditSummary.md` — engagement history + Production Readiness Checklist (§13 is the current, accurate gap list; older "~20% readiness" framing in §12 is explicitly stale).
-- `ModuleWiseAuditReport.md`, `AuthTestingGuide.md` — module-by-module audit notes and a hands-on curl+SQL auth testing walkthrough.
+- `ModuleWiseAuditReport.md` — module-by-module audit notes.
 
 **Frontend repo:** `src/components/README.md` documents the UI foundation build-out against the requirements doc's numbered sections — check it for design-token/component provenance.
 
@@ -87,15 +86,15 @@ Two separate git repos, developed together:
 Shared database, row-level isolation — **not** database-per-tenant.
 
 1. **Global EF query filter** on nearly every tenant-scoped entity: `!IsDeleted && TenantId == <caller's tenant>`, applied automatically to every LINQ query so a handler can't leak cross-tenant data just by forgetting a `.Where()`. `AuditLogs`/`TaskStatusHistories` are *meant* to skip the soft-delete half (immutability) but this isn't cleanly implemented yet — a known gap.
-2. **`ITenantScopeService`** (Application-layer, not an ASP.NET policy) adds company/assignee-level scoping on top: `GetEnforcedCompanyId()` for Company admin, `GetEnforcedAssigneeId()` for Employee. Client-supplied `companyId`/`assignedToUserId` params are **silently overridden**, not just validated, for these two roles — they always get their own scoped data, never a 403.
+2. **`ITenantScopeService`** (Application-layer, not an ASP.NET policy) adds company/assignee-level scoping on top: `GetEnforcedCompanyId()` (singular) for Company admin's/Employee's own company, `GetEnforcedCompanyIds()` (plural — a superset covering the singular case too) for an Auditor's `UserCompanyMapping` rows, `GetEnforcedAssigneeId()` for Employee's own tasks. Client-supplied `companyId`/`assignedToUserId` params are **silently overridden**, not just validated, for these roles — they always get their own scoped data, never a 403. **A mapped Auditor (has ≥1 `UserCompanyMapping` row) is restricted to those companies; an unmapped Auditor falls through to unrestricted-within-tenant** — this is a real, load-bearing distinction, not a hypothetical.
 3. Platform admin has `TenantId = null`, so the global filter naturally returns zero tenant-scoped rows — matches the "no audit content access" product rule. Admin cross-tenant queries opt in explicitly via `.IgnoreQueryFilters()`.
-4. **Known gap**: `UserCompanyMapping` (join table for scoping one Auditor to specific Companies) exists in the schema but nothing populates/consumes it yet — an Auditor "mapped" to specific companies currently still sees their whole tenant.
+4. `UserCompanyMapping` **is populated** (at invite time — `InviteUserCommandHandler` always maps an invited Auditor to the company chosen on the invite form) **and is consumed** by `GetEnforcedCompanyIds()`. Previously fixed inconsistency (2026-08-11): several read paths — `GetCompaniesQueryHandler` (company list/dropdown), `GetCompanyByIdQueryHandler`, `GetSubCompaniesQueryHandler`, `GetSubCompanyByIdQueryHandler`, `GetCompanyStatisticsQueryHandler`, five `Users` handlers (list/get/invite/deactivate/activate/update/potential-managers/filter-options), and `GetAnnouncementsQueryHandler` — were calling `GetEnforcedCompanyId()` (the singular, CompanyAdmin/Employee-only check) instead of `GetEnforcedCompanyIds()`, so a mapped Auditor could see/manage companies and users outside their mapped set through those specific endpoints even though task-related endpoints already enforced it correctly. All now consistent. `CreateTaskCommandHandler` also previously did zero scope-checking at all (the actual bug that surfaced this: a mapped Auditor could create a task for a company outside their scope via the then-unscoped company dropdown — the task would save, then be invisible to its own creator on every scope-enforcing read path) — now checks scope before creating.
 
 ### Auth model
 
 JWT Bearer, 60-min access token, 7-day refresh token (SHA-256-hashed at rest, rotated on use, reuse-detection revokes all sessions on replay). Real TOTP MFA (RFC 6238) with recovery codes. Lockout after 5 failed attempts / 15 min.
 
-JWT claims: `nameidentifier`, `name`/`emailaddress`, `role` (string, e.g. `"Auditor"`), `tenant_id` (all-zeros for Platform admin), `full_name`, `company_id`/`sub_company_id` (Company admin/Employee only), `mapped_company_id` (repeated per mapping, for Auditors — see gap above).
+JWT claims: `nameidentifier`, `name`/`emailaddress`, `role` (string, e.g. `"Auditor"`), `tenant_id` (all-zeros for Platform admin), `full_name`, `company_id`/`sub_company_id` (Company admin/Employee only), `mapped_company_id` (repeated per mapping, for a scoped Auditor — baked into the JWT at login/token-issue time, so `ITenantScopeService.GetEnforcedCompanyIds()` reads it straight from claims rather than re-querying `UserCompanyMappings` per request; a newly-invited Auditor's mapping won't reflect in an already-issued token until they next log in or refresh).
 
 Authorization is `[Authorize(Roles=...)]` attribute-based only — no custom policy handlers; row/data-level scoping lives in `ITenantScopeService` + the EF global filter instead. A bare 401/403 from `[Authorize]` returns an **empty body** (not the `ApiResponse` envelope); only business-rule 401s that reach a handler get the full JSON shape.
 
@@ -117,7 +116,7 @@ dotnet run --project src/AuditFlow.API --urls http://localhost:5298
 
 All 10 functional modules are wired end-to-end and live-tested against a real DB — this is **not** early-stage stub code. What's actually left (backend `AuditSummary.md` §13):
 - 🔴 No real secrets for Production env (deliberately blank, must come from env/Key Vault); no CI/CD or Dockerfile; dead disabled auto-migrate code in `Program.cs` should be deleted; `AuditLog`/`TaskStatusHistory` soft-delete exclusion not properly implemented.
-- 🟠 `UserCompanyMapping` unused (see above); Admin health endpoint has placeholder DB-size/backup fields; instant emails (as opposed to in-app notification) never fire from Task events, only the daily digest works; no automated cross-tenant isolation tests (though `CrossTenantIsolationIntegrationTests.cs` may already exist — verify before assuming a gap).
+- 🟠 Admin health endpoint's `lastBackupAt` field is a placeholder (`databaseSizeBytes`/`version`/`environment` are real, live-queried); instant emails (as opposed to in-app notification) never fire from Task events, only the daily digest works; no automated cross-tenant isolation tests (though `CrossTenantIsolationIntegrationTests.cs` may already exist — verify before assuming a gap).
 - 🟡 No MFA/global-exception-middleware test coverage; one known-failing test (Windows path-separator bug); bulk import is CSV-only despite ClosedXML already being a dependency; no self-service full-name edit.
 - 🟢 No dashboard caching (recomputes every request); `Redis` connection string configured but unused anywhere.
 
@@ -142,14 +141,14 @@ Single source of truth: `RouteMeta.access` is `"Public"` or a `Role[]`. Roles: `
 | Company admin | Both dashboards (own company scope), tasks (view only, no create), no company CRUD, invite Employee/Company admin only |
 | Employee | Standard dashboard only, tasks (view/grid, no create), reports, notifications, profile |
 
-If a route in `routes.ts` doesn't have a matching branch in `main.tsx`'s switch, it silently falls back to `PlaceholderPage` rather than erroring — currently true for `/admin/audit-log`.
+If a route in `routes.ts` doesn't have a matching branch in `main.tsx`'s switch, it silently falls back to `PlaceholderPage` rather than erroring — `/admin/audit-log` was the one real remaining case of this (fixed 2026-08-11, see `AuditLogPage` below); check `main.tsx`'s switch before assuming a route is unimplemented.
 
 ### Data-fetching & API layer
 
 - **TanStack Query** (`src/lib/queryClient.ts`): 30s staleTime, no retry on 4xx, no refetch-on-focus, deliberately shared query keys across components (e.g. Sidebar + Dashboard both use `["dashboard","summary"]`) so requests dedupe. `queryClient.clear()` on sign-out.
 - **`apiClient.ts`**: hand-rolled fetch wrapper (not axios). Attaches Bearer token, unwraps the `ApiResponse` envelope, returns `Blob` for non-JSON (file downloads), does **single-flight token refresh** on 401 (dedupes concurrent refreshes, retries original request once), throws typed `ApiError` (`status`/`errorCode`/`detail`/`fieldErrors`) parsed from ProblemDetails.
 - **Mock/live cutover** (`src/lib/config.ts`, `VITE_API_MODE`): every function in every `src/services/*.ts` file follows `if (API_MODE === "mock") { ...mock-data... } return apiClient...(...)`. This branch-per-function pattern is the entire cutover mechanism — **preserve it** for any new service function; don't rip out the mock path without explicit confirmation ([[feedback_mock_data_cutover]]). `.env.example` defaults to `mock`; local dev `.env.local` is currently set to `live` against `http://localhost:5298/api/v1`.
-- **Token storage**: plain `localStorage` (`auditflow-access-token`/`-refresh-token`), no cookies, no encryption.
+- **Token storage** (`src/lib/tokenStorage.ts`): `sessionStorage` by default — private to a single tab, so two different accounts can be logged in side by side in two tabs of the same browser without one silently overwriting the other's session (this was a real bug: `localStorage` is shared across every tab of an origin, so whichever account logged in *last* became the identity every open tab's next request used, causing wrong-account data, 403s, and dashboard/notification mixups — fixed 2026-08-11). "Keep me signed in" on the sign-in form is the deliberate opt-in that *also* persists to `localStorage`, so a brand-new tab that hasn't established its own session yet inherits it (normal "stay signed in" convenience for the common single-account case) — a tab that already has its own `sessionStorage` never looks at `localStorage` again regardless. No cookies, no encryption. `apiClient.ts` has a `skipAuth` request option so the handful of genuinely public endpoints (login, forgot/reset-password, invite validate/accept) never attach a stray Bearer token from an unrelated session in the same browser — needed because `ApplicationDbContext`'s tenant query filter treats "any authenticated principal present" as reason to scope a query, even one that shouldn't require auth at all.
 - **Raw→Display DTO mapping**: nearly every service defines a `RawXxx` type matching exact backend JSON + a `mapXxx()` converting numeric enums → string unions, `null`→`undefined`, etc. New integration work should follow this same split, not consume backend shapes directly in components.
 - **Enum mapping layer**: `lib/taskStatusMapping.ts`, `lib/taskPriorityMapping.ts`, `lib/roleMapping.ts`, `services/notifications.ts` (`KIND_FROM_ENUM`) — always check here before assuming a value's shape. `"overdue"` is a **synthetic, client-derived status** (never sent/received from the backend), computed from `isOverdue` + real status.
 
@@ -170,13 +169,13 @@ If a route in `routes.ts` doesn't have a matching branch in `main.tsx`'s switch,
 
 Design tokens as CSS custom properties in `src/index.css` (~4133 lines, BEM-ish classes like `.btn`/`.card`/`.grid-table`), mirrored into `tailwind.config.ts`. Tailwind is configured but lightly used directly in JSX — most styling is semantic classes from `index.css`. Inter font + Tabler Icons, both via CDN, not npm packages.
 
-Reusable primitives in `src/components/ui/` (barrel-exported): `Badge`, `Button`, `Card`, `Chip`, `DonutChart`/`TrendChart` (inline SVG, no chart library), `FormField`/`FieldRow`, `Modal`, `Pagination`, `RowActionMenu`, `Table`+`CellPerson`, `Toast`, `Toggle`, `Tooltip`.
+Reusable primitives in `src/components/ui/` (barrel-exported): `Badge`, `Button`, `Card`, `Chip`, `DonutChart`/`TrendChart` (inline SVG, no chart library), `FormField`/`FieldRow`, `Modal`, `Pagination`, `RowActionMenu`, `Table`+`CellPerson`, `Toast`, `Toggle`, `Tooltip`. `Table`'s `Column.align` prop exists specifically so a page can force left/center/right on a per-column basis, immune to the shared `.grid-table` stylesheet's positional `:has()` rules (which assume "last column = status badge, should be centered" — true for the Users table it was written for, false for e.g. the tenant accounts table, where that assumption previously mismatched the header/data alignment) — prefer `Table` over a hand-rolled `<table>` for this reason alone. `src/lib/useClickOutside.ts` (added 2026-08-11) closes a menu/dropdown on an outside click; used by the avatar menu, role switcher, and `RowActionMenu` — apply it to any new dropdown-style component rather than leaving it open-until-retoggled.
 
 Layout shells in `src/components/layout/`: `AppShell` (sidebar+topbar, most pages), `PlatformAdminShell` (separate simpler shell for `/admin/*`), `AuthShell` (split-screen public auth pages), `Sidebar`, `Topbar`, `GlobalSearch` (250ms debounced task search — the one explicit debounce in the codebase).
 
 ### Pages (`src/pages/*.tsx`)
 
-Auth: `SignInPage`, `AcceptInvitePage`, `ForgotPasswordPage`, `ResetPasswordPage`. Core: `DashboardPage` (Standard + Executive in one file, ~18KB), `TaskGridPage` (week/all modes), `TaskCreatePage`, `TaskBulkCreatePage`, `TaskDetailsPage` (~21KB, tabs: Overview/Comments/Documents/Timeline), `ReportsPage`, `CompanyManagementPage`, `CompanyFormPage`, `UserManagementPage`, `InviteUserPage`, `NotificationsPage`, `ProfilePage`. Platform: `PlatformAdminPages.tsx` (multi-export: `TenantListPage`/`CreateTenantPage`/`TenantDetailPage`/`SystemOverviewPage`). Fallback: `PlaceholderPage`.
+Auth: `SignInPage`, `AcceptInvitePage`, `ForgotPasswordPage`, `ResetPasswordPage`. Core: `DashboardPage` (Standard + Executive in one file — Executive supports a "Custom range" date filter alongside the relative presets, added 2026-08-11), `TaskGridPage` (week/all modes), `TaskCreatePage`, `TaskBulkCreatePage`, `TaskDetailsPage` (~21KB, tabs: Overview/Comments/Documents/Timeline), `ReportsPage`, `CompanyManagementPage`, `CompanyFormPage`, `UserManagementPage`, `InviteUserPage`, `NotificationsPage`, `ProfilePage`. Platform: `PlatformAdminPages.tsx` (multi-export: `TenantListPage`/`CreateTenantPage`/`TenantDetailPage`/`SystemOverviewPage`/`AuditLogPage` — the last one added 2026-08-11, was a `PlaceholderPage` before that; `TenantListPage` also gained a row-action menu for Onboarding→Active/Active↔Suspended tenant status). Fallback: `PlaceholderPage`.
 
 ### Running the frontend
 

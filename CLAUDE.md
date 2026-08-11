@@ -10,7 +10,7 @@ Two repos, developed together:
 - **This repo** — React 19 + Vite SPA.
 - **Backend** — `C:\Rakesh\My Workspace\My Developments\Projects\AuditFlow-Backend\AuditFlow-Backend\AuditFlow-Backend`, .NET 8 Clean Architecture. Run: `dotnet run --project src/AuditFlow.API --urls http://localhost:5298`.
 
-Shared docs one level up: `Project_Docs\Audit_Flow_Docs\4 - BACKEND_INTEGRATION_GUIDE.md` is the authoritative API contract reference (JWT claims, enum-over-the-wire behavior, error envelope, endpoint↔screen map) — cited by section number throughout `src/services/*.ts`.
+Shared docs: `Documents\4 - BACKEND_INTEGRATION_GUIDE.md` (in this repo) is the authoritative API contract reference (JWT claims, enum-over-the-wire behavior, error envelope, endpoint↔screen map) — cited by section number throughout `src/services/*.ts`.
 
 ## Critical things not to get wrong
 

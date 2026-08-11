@@ -144,10 +144,12 @@ flowchart TD
     HANDLER --> GQF["EF Global Query Filter\n!IsDeleted && TenantId == caller's tenant"]
     GQF --> TSS2{"Role?"}
     TSS2 -->|Platform admin| ZERO["TenantId = null →\nfilter yields zero tenant rows\n(admin queries use IgnoreQueryFilters explicitly)"]
-    TSS2 -->|Auditor| WIDE["Unrestricted within tenant\n(UserCompanyMapping scoping NOT yet enforced — known gap)"]
+    TSS2 -->|"Auditor (mapped)"| WIDE["GetEnforcedCompanyIds()\nrestricted to UserCompanyMapping rows,\nset at invite time"]
+    TSS2 -->|"Auditor (unmapped)"| WIDE2["Unrestricted within tenant\n(no UserCompanyMapping rows)"]
     TSS2 -->|Company admin| SCOPED1["GetEnforcedCompanyId()\nclient-supplied companyId overridden, not just checked"]
     TSS2 -->|Employee| SCOPED2["GetEnforcedAssigneeId()\nalways own tasks only"]
     WIDE --> DB2[(SQL Server)]
+    WIDE2 --> DB2
     SCOPED1 --> DB2
     SCOPED2 --> DB2
     ZERO --> DB2
@@ -176,7 +178,7 @@ sequenceDiagram
     end
     AUTH->>DB: issue access token (60min) + refresh token (7d, SHA-256 hashed)
     AUTH-->>UI: { accessToken, refreshToken, expiresAt }
-    UI->>UI: tokenStorage.set (localStorage)
+    UI->>UI: tokenStorage.set (sessionStorage; also localStorage if "Keep me signed in")
     UI->>UI: jwt-decode → RoleContext user (role, tenantId, companyId, ...)
 
     Note over UI,AUTH: Later — any 401 response
@@ -187,6 +189,8 @@ sequenceDiagram
 ```
 
 Frontend role bootstrap (`RoleContext.tsx`): in `mock` mode, restores a fake session from `localStorage` flags with a topbar role-switcher for manual testing; in `live` mode, role/tenant/company are **purely JWT-derived** — there is no separate "current user" fetch on boot beyond decoding the stored token.
+
+**Token storage is `sessionStorage`-first, not `localStorage`** (changed 2026-08-11 — see `PROJECT_CONTEXT.md` §4 for the full "why", it was a real cross-account data-leak bug, not a preference). On load, `tokenStorage.ts` copies an existing `localStorage` session into `sessionStorage` *only if this tab doesn't already have its own* — so a tab that has ever independently logged in stays fully isolated from whatever any other tab does afterward. `apiClient.ts`'s `skipAuth` option keeps public endpoints (login, forgot/reset-password, invite validate/accept) from ever attaching a stray token from an unrelated session, which otherwise tripped the backend's tenant query filter on requests that should never have been treated as authenticated at all.
 
 ---
 
@@ -208,7 +212,7 @@ flowchart TD
     ROUTES -->|"public: true"| PUBLICSWITCH["PublicPage switch\n/signin, /invite/accept,\n/forgot-password, /reset-password"]
 ```
 
-If a route exists in `routes.ts` but has no matching branch in `main.tsx`'s switch, it silently renders `PlaceholderPage` — currently the case for `/admin/audit-log`.
+If a route exists in `routes.ts` but has no matching branch in `main.tsx`'s switch, it silently renders `PlaceholderPage`. `/admin/audit-log` was the one real remaining case of this — fixed 2026-08-11 (`AuditLogPage`, filters + pagination against the `GET /admin/audit-log` endpoint, which already existed backend-side).
 
 ---
 
@@ -241,7 +245,7 @@ erDiagram
     Company ||--o{ SubCompany : has
     Tenant ||--o{ ApplicationUser : has
     Company ||--o{ ApplicationUser : "scopes (CompanyAdmin/Employee)"
-    ApplicationUser ||--o{ UserCompanyMapping : "mapped to (Auditor, unused today)"
+    ApplicationUser ||--o{ UserCompanyMapping : "mapped to (Auditor scoping — enforced)"
     Company ||--o{ UserCompanyMapping : "mapped via"
     ApplicationUser ||--o{ TaskItem : "assigned to"
     ApplicationUser ||--o{ TaskItem : "created by"
@@ -264,7 +268,6 @@ Full column-level schema, indexes, and the module→table map live in the backen
 ## 9. Known Architectural Gaps (see `PROJECT_CONTEXT.md` §3/§5 for full detail)
 
 - Domain events subsystem: modeled, never wired.
-- `UserCompanyMapping`: schema exists, scoping logic doesn't consume it yet.
 - `AuditLog`/`TaskStatusHistory`: meant to be soft-delete-immune, not cleanly excluded from the global filter yet.
 - Frontend debounce: only `GlobalSearch` (250ms); not centralized in `apiClient.ts` despite the horizontal-scale goal of baking dedup/debounce into the API layer.
 - No CI/CD, no Dockerfile, no production secrets wired — deploy-readiness gaps, not functional gaps.

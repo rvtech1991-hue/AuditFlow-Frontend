@@ -40,12 +40,12 @@ move a task to `Closed`. Every transition is appended to an immutable audit time
 |---|---|
 | Backend repo | `C:\Rakesh\My Workspace\My Developments\Projects\AuditFlow-Backend\AuditFlow-Backend\AuditFlow-Backend` |
 | Frontend repo | `C:\Rakesh\My Workspace\My Developments\Projects\AuditFlow-Frontend\AuditFlow-Frontend` |
-| Product requirements (17-screen spec, business rules, design system) | `Project_Docs\Audit_Flow_Docs\1 - AuditFlow-Requirements.docx` |
-| Old API spec (**partially stale** — see §11 for the specific corrections made since) | `Project_Docs\Audit_Flow_Docs\2 - API_SPECIFICATION.md` |
-| Interactive HTML mockups of all screens | `Project_Docs\Audit_Flow_Docs\3 - mockup-audit-saas-all-screens.html` |
-| **This document** | `Project_Docs\Audit_Flow_Docs\4 - BACKEND_INTEGRATION_GUIDE.md` |
+| Product requirements (17-screen spec, business rules, design system) | `AuditFlow-Frontend\...\Documents\1 - AuditFlow-Requirements.docx` |
+| Old API spec (**partially stale** — see §11 for the specific corrections made since) | `AuditFlow-Frontend\...\Documents\2 - API_SPECIFICATION.md` |
+| Interactive HTML mockups of all screens | `AuditFlow-Frontend\...\Documents\3 - mockup-audit-saas-all-screens.html` |
+| **This document** | `AuditFlow-Frontend\...\Documents\4 - BACKEND_INTEGRATION_GUIDE.md` |
 | Postman collection (already updated to match current backend) | `AuditFlow-Backend\...\postman\AuditFlow.postman_collection.json` |
-| DB schema reference | `Project_Docs\Audit_Flow_Docs\DatabaseStructure.md` |
+| DB schema reference | `AuditFlow-Frontend\...\Documents\DatabaseStructure.md` |
 
 ---
 
@@ -541,11 +541,13 @@ half-migrated files.
 
 One fetch wrapper used by every `services/*.ts` file, responsible for:
 - Prefixing `VITE_API_BASE_URL`.
-- Attaching `Authorization: Bearer <token>` from wherever tokens end up being stored (§5 — this is
-  a real decision to make: `localStorage` is simplest and matches the existing `RoleContext`
-  pattern, but is XSS-exposed; an httpOnly cookie set by the backend would be more secure but the
-  backend doesn't currently issue one — that's a bigger change. Simplest correct path for v1:
-  `localStorage`, matching what's already there, revisit later if there's a security review).
+- Attaching `Authorization: Bearer <token>` from wherever tokens end up being stored (§5 — **this
+  was revisited 2026-08-11, see §13**: plain `localStorage` turned out to be a real bug, not just a
+  theoretical XSS-exposure tradeoff — it's shared across every tab of the origin, so two different
+  accounts logged in in two tabs of the same browser would silently overwrite each other's session.
+  Current implementation is `sessionStorage`-first with an explicit "Keep me signed in" opt-in to
+  also persist to `localStorage`; an httpOnly cookie remains a further future option if there's a
+  security review, but wasn't the fix this needed).
 - Parsing `application/problem+json` error bodies into one typed `ApiError` shape (`{ errorCode,
   detail, status }`) that every `services/*` caller and every page's error-handling code can rely on
   uniformly — this is the payoff of the backend's unified ProblemDetails work (§4), don't let each
@@ -614,3 +616,81 @@ For each module as you integrate it:
 - [ ] Role-gated actions correctly hide/disable for roles that would 403 (don't rely on the 403
       alone — hide the button too, matching what `routes.ts`/`navItems` already do for navigation)
 - [ ] A 401 (expired token) triggers the refresh flow, not an immediate logout
+
+---
+
+## 13. Amendments from a live multi-account QA pass (2026-08-11) — additive, doesn't invalidate §1-12
+
+Everything below was found and fixed during hands-on testing with two real accounts logged in
+side by side. Doesn't replace anything above; §13 wins where it overlaps.
+
+**Auditor company scoping is now consistently enforced, not just for Tasks.** `UserCompanyMapping`
+rows are populated at invite time (`InviteUserCommandHandler` always maps an invited Auditor to the
+company chosen on the invite form) and consumed via `ITenantScopeService.GetEnforcedCompanyIds()`
+— a mapped Auditor is restricted to those companies, an unmapped one is unrestricted within their
+tenant. Task-related endpoints already enforced this correctly; the Companies list/detail,
+Sub-companies, Company statistics, most of the Users endpoints, `CreateTaskCommandHandler`, and
+`GetAnnouncementsQueryHandler` did not — they used `GetEnforcedCompanyId()` (the older,
+CompanyAdmin/Employee-only singular check) instead of `GetEnforcedCompanyIds()`. All now consistent.
+If you're adding a new company- or user-scoped query, use the plural method and check the existing
+call sites for the pattern — don't reintroduce the singular one for an Auditor-reachable endpoint.
+
+**Auth token storage changed from `localStorage` to `sessionStorage`** (see the §3/apiClient note
+above). If you're building anything that reads the stored token directly instead of going through
+`tokenStorage.ts`'s `getAccessToken()`/`getRefreshToken()`, it'll silently break — there should be
+no direct `localStorage.getItem("auditflow-access-token")` anywhere outside that one file.
+
+**`InvitationRepository.GetByTokenAsync` bypasses the tenant query filter** (`IgnoreQueryFilters`,
+still respects soft-delete). It's only ever called from the two anonymous pre-login endpoints
+(`GET /invites/validate/{token}`, `POST /invites/accept`) — a real bug otherwise: a stale-but-valid
+Bearer token left over from a *different* logged-in session in the same browser (e.g. a
+PlatformAdmin session, whose `TenantId` is null) made a perfectly valid invitation 404, since the
+tenant filter only checks "is there an authenticated principal", not "does this endpoint need one".
+Frontend-side, `apiClient.ts` now has a `skipAuth` option used by every genuinely public endpoint
+(login, forgot/reset-password, invite validate/accept) so this can't recur from the client side either.
+
+**Invite/reset-password link expiry, confirmed and now actually stated in the email copy:**
+invite links (`InviteUserCommandHandler`, and the Platform-admin `CreateAuditorAccountCommandHandler`
+tenant-provisioning flow — both, identically) expire in **7 days**; forgot/reset-password links
+expire in **24 hours** (ASP.NET Identity's default `DataProtectionTokenProviderOptions.TokenLifespan`,
+not overridden anywhere). Previously the email copy just said "expires soon" without a number.
+
+**Local dev email delivery may not match `appsettings.json`'s stated default.** `Email:Provider`
+defaults to `"Development"` (writes `.html` files to `C:\AuditFlow\EmailPickup` instead of sending),
+but a developer's local `dotnet user-secrets` can silently override this to `"Smtp"` with real Gmail
+credentials — confirmed present on at least one local dev machine during this pass. Check
+`dotnet user-secrets list --project src/AuditFlow.API` (or just watch whether new files actually
+appear in the pickup folder) before assuming emails are landing there and not actually being sent.
+
+**Task attachments now return the uploader's name.** `AttachmentResponse.UploadedByUserId`/
+`UploadedByUserName` existed on the DTO but were never populated by `GetTaskByIdQueryHandler` for
+either task-level or comment-level attachments — comment-level ones weren't even being loaded from
+the DB at all (missing `Include`), so they never appeared in a task's detail response regardless of
+uploader. Both fixed; if you add a new place that returns `AttachmentResponse`, populate these two
+fields the same way (`a.UploadedByUserId`, `a.UploadedByUser?.FullName`).
+
+**New/changed endpoints and fields, not documented in §8 above:**
+- `GET /admin/audit-log` (already existed backend-side per the original write-up, but had **no
+  frontend page** until this pass — `AuditLogPage.tsx` now consumes it with entity/action/date
+  filters and pagination).
+- `GET /admin/auditor-accounts` (list) and `GET /admin/auditor-accounts/{id}` (detail) responses
+  gained a `tasksCount` field, computed the same way `companiesCount`/`usersCount` already were
+  (a grouped count against the tenant's tasks, `IgnoreQueryFilters` since the caller is always
+  PlatformAdmin whose own `TenantId` is null).
+- `PATCH /admin/auditor-accounts/{id}` — worth restating since it's an easy trap: the **read**
+  DTOs (`AuditorAccountListItemResponse`/`AuditorAccountDetailResponse`) send `status` as a string
+  (`"Active"`), but this same PATCH endpoint's **response** DTO (`AuditorAccountResponse`) sends
+  `status` back as the raw numeric `AuditorStatus` enum, and omits `tasksCount` entirely. The
+  frontend's `updateTenantStatus()` deliberately doesn't try to map that response into its normal
+  `TenantEntry` shape — it just refetches the list afterward. Don't trust this endpoint's own
+  response shape to match the list/detail read DTOs.
+- `GET /dashboard/executive/{kpis,trend,status-mix}` now accept optional `dateFrom`/`dateTo`
+  (ISO datetime) query params for a caller-supplied custom window, in addition to the existing
+  `dateRange` preset string (`last7days`/`last30days`/`last90days`/`last8weeks`/`last12weeks`/
+  `lastquarter`). Both `dateFrom` and `dateTo` must be present together to activate the custom
+  window — a lone one falls back to the preset. Company health and Team workload deliberately
+  still ignore date filtering entirely on this dashboard (pre-existing, unchanged).
+- Fixed in the same pass: `"lastquarter"` as a `dateRange` value was silently behaving like
+  `"last8weeks"` — the day-count switch had no case for it.
+
+---

@@ -51,7 +51,7 @@ SELECT Id, Email, FullName, Role, Status, TenantId, CompanyId, SubCompanyId, Mfa
 ### A1. Successful login
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/login \
+curl -s -X POST http://localhost:5298/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"auditor@seed.test","password":"<pwd>","rememberMe":true}'
 ```
@@ -91,7 +91,7 @@ WHERE UserId = '06ae13f1-b5dd-4c40-7099-08dee90407d5' AND Action = 17 ORDER BY C
 ### A2. Wrong password
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/auth/login \
+curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"auditor@seed.test","password":"<wrong-pwd>"}'
 ```
@@ -122,7 +122,7 @@ via SQL if you don't want to wait).
 ### A4. Non-existent account / inactive account
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/auth/login \
+curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/v1/auth/login \
   -H "Content-Type: application/json" -d '{"email":"nobody@seed.test","password":"x"}'
 ```
 **Expected:** `401 INVALID_CREDENTIALS` — deliberately the *same* error/code as a wrong password, so
@@ -152,7 +152,7 @@ against.
 
 ```bash
 TOKEN="<paste accessToken>"
-curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/users/me -H "Authorization: Bearer $TOKEN"
+curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/v1/users/me -H "Authorization: Bearer $TOKEN"
 ```
 **Expected:** `200`, your own profile back (`ApiResponse<UserProfileResponse>`).
 
@@ -160,7 +160,7 @@ curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/users/me -H "Aut
 
 ```bash
 REFRESH="<paste refreshToken from A1>"
-curl -s -X POST http://localhost:5298/api/auth/refresh \
+curl -s -X POST http://localhost:5298/api/v1/auth/refresh \
   -H "Content-Type: application/json" -d "{\"refreshToken\":\"$REFRESH\"}"
 ```
 **Expected:** `200`, a **new** `accessToken` + `refreshToken` pair.
@@ -179,7 +179,7 @@ recency/chain.
 
 Take the **old, now-revoked** refresh token from B3 and try to use it again:
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/auth/refresh \
+curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/v1/auth/refresh \
   -H "Content-Type: application/json" -d "{\"refreshToken\":\"$REFRESH\"}"
 ```
 **Expected:** `401`, `errorCode: "REFRESH_TOKEN_REUSED"`. This simulates a stolen/replayed token being
@@ -196,7 +196,7 @@ one being replayed — you'll need to log in again (A1) to get a usable token fo
 
 Log in fresh (A1), then:
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/logout -H "Authorization: Bearer $TOKEN" \
+curl -s -X POST http://localhost:5298/api/v1/auth/logout -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d "{\"refreshToken\":\"$REFRESH\"}"
 ```
 **Expected:** `200`, `"Logged out successfully"`.
@@ -219,14 +219,14 @@ ever reaches a MediatR handler. That matters for what the response body looks li
 ### C1. No token at all
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\nbody: [%{size_download} bytes]\n" http://localhost:5298/api/users/me
+curl -s -w "\nstatus: %{http_code}\nbody: [%{size_download} bytes]\n" http://localhost:5298/api/v1/users/me
 ```
 **Expected:** `401`, 0-byte body.
 
 ### C2. Garbage/malformed token
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/users/me -H "Authorization: Bearer not-a-real-token"
+curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/v1/users/me -H "Authorization: Bearer not-a-real-token"
 ```
 **Expected:** `401`, 0-byte body.
 
@@ -234,9 +234,9 @@ curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/users/me -H "Aut
 
 Log in as `employee@seed.test`, then hit a PlatformAdmin-only endpoint:
 ```bash
-EMP_TOKEN=$(curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: application/json" \
+EMP_TOKEN=$(curl -s -X POST http://localhost:5298/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"employee@seed.test","password":"<pwd>"}' | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
-curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/admin/health -H "Authorization: Bearer $EMP_TOKEN"
+curl -s -w "\nstatus: %{http_code}\n" http://localhost:5298/api/v1/admin/health -H "Authorization: Bearer $EMP_TOKEN"
 ```
 **Expected:** `403`, 0-byte body — the token is perfectly valid, just the wrong role for this route.
 
@@ -279,7 +279,7 @@ All 4 seed accounts above share **one** tenant, so this needs a second tenant to
 ### D1. Request a reset
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/forgot-password \
+curl -s -X POST http://localhost:5298/api/v1/auth/forgot-password \
   -H "Content-Type: application/json" -d '{"email":"auditor@seed.test"}'
 ```
 **Expected:** `200`, always the same generic message
@@ -301,7 +301,7 @@ it into the JSON body below — the raw email-link value won't match otherwise. 
 ### D2. Reset the password
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/reset-password \
+curl -s -X POST http://localhost:5298/api/v1/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{"email":"auditor@seed.test","token":"<paste token>","newPassword":"<new-pwd>"}'
 ```
@@ -324,7 +324,7 @@ Auditor/CompanyAdmin) if you want this guide's credentials to keep working for l
 ### D3. Invalid/expired token
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/auth/reset-password \
+curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/v1/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{"email":"auditor@seed.test","token":"garbage-token","newPassword":"<new-pwd>"}'
 ```
@@ -341,10 +341,10 @@ This spans two modules — creating the invite is a **Users**-module action, onl
 ### E1. Create an invitation (as Auditor or CompanyAdmin)
 
 ```bash
-AUD_TOKEN=$(curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: application/json" \
+AUD_TOKEN=$(curl -s -X POST http://localhost:5298/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"auditor@seed.test","password":"<pwd>"}' | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
 
-curl -s -X POST http://localhost:5298/api/users/invite -H "Authorization: Bearer $AUD_TOKEN" \
+curl -s -X POST http://localhost:5298/api/v1/users/invite -H "Authorization: Bearer $AUD_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"fullName":"Test Invitee","email":"test.invitee@example.com","role":4,"companyId":"6dfa5b92-8546-4e3d-a417-48e9bf861552"}'
 ```
@@ -364,14 +364,14 @@ Open `C:\AuditFlow\EmailPickup\` again, find the newest file for `test.invitee@e
 the `token` from the invite link (URL-decode it — e.g. `%2B` → `+`, `%2F` → `/` — before pasting into
 JSON, or the token hash won't match), then:
 ```bash
-curl -s http://localhost:5298/api/auth/invites/validate/<token>
+curl -s http://localhost:5298/api/v1/invites/validate/<token>
 ```
 **Expected:** `200`, `{ "invitationId": "...", "email": "test.invitee@example.com", "companyName": "Seed Company Inc", "role": 4, ... }`.
 
 ### E3. Accept the invitation
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/accept-invitation \
+curl -s -X POST http://localhost:5298/api/v1/invites/accept \
   -H "Content-Type: application/json" \
   -d '{"token":"<paste token>","password":"<invitee-pwd>","confirmPassword":"<invitee-pwd>"}'
 ```
@@ -389,7 +389,7 @@ SELECT TOP 1 Action FROM AuditLogs WHERE EntityId = (SELECT Id FROM Users WHERE 
 ### E4. Re-use the same invitation (should fail)
 
 ```bash
-curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/auth/accept-invitation \
+curl -s -w "\nstatus: %{http_code}\n" -X POST http://localhost:5298/api/v1/invites/accept \
   -H "Content-Type: application/json" \
   -d '{"token":"<same token>","password":"<whatever-pwd>","confirmPassword":"<whatever-pwd>"}'
 ```
@@ -404,10 +404,10 @@ tests.
 ### F1. Set up MFA
 
 ```bash
-EMP_TOKEN=$(curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: application/json" \
+EMP_TOKEN=$(curl -s -X POST http://localhost:5298/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"employee@seed.test","password":"<pwd>"}' | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
 
-curl -s -X POST http://localhost:5298/api/auth/mfa/setup -H "Authorization: Bearer $EMP_TOKEN" \
+curl -s -X POST http://localhost:5298/api/v1/auth/mfa/setup -H "Authorization: Bearer $EMP_TOKEN" \
   -H "Content-Type: application/json" -d '{}'
 ```
 **Expected:** `200`, `{ "secret": "JBSWY3DPEHPK3PXP...", "qrCodeUrl": "otpauth://totp/AuditFlow:employee@seed.test?secret=...&algorithm=SHA1&digits=6&period=30", "recoveryCodes": [] }`.
@@ -454,7 +454,7 @@ The code is only valid for a 30-second window — generate it right before using
 ### F3. Verify (finish enabling MFA)
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/mfa/verify -H "Authorization: Bearer $EMP_TOKEN" \
+curl -s -X POST http://localhost:5298/api/v1/auth/mfa/verify -H "Authorization: Bearer $EMP_TOKEN" \
   -H "Content-Type: application/json" -d '{"code":"<6-digit code>"}'
 ```
 **Expected:** `200`, `{ "recoveryCodes": ["a1b2c-d3e4f5", ... 8 total] }` — **save these**, they're
@@ -470,13 +470,13 @@ SELECT TOP 1 Action FROM AuditLogs WHERE UserId = (SELECT Id FROM Users WHERE Em
 ### F4. Log in with MFA enabled
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: application/json" \
+curl -s -X POST http://localhost:5298/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"employee@seed.test","password":"<pwd>"}'
 ```
 **Expected:** `200` but `{"requiresMfa": true, "user": {...}}` with **no** `accessToken` — you don't
 get a usable session yet. Re-send with a fresh code:
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: application/json" \
+curl -s -X POST http://localhost:5298/api/v1/auth/login -H "Content-Type: application/json" \
   -d '{"email":"employee@seed.test","password":"<pwd>","mfaCode":"<fresh 6-digit code>"}'
 ```
 **Expected:** `200`, full `accessToken`/`refreshToken` this time.
@@ -484,7 +484,7 @@ curl -s -X POST http://localhost:5298/api/auth/login -H "Content-Type: applicati
 ### F5. Disable MFA
 
 ```bash
-curl -s -X POST http://localhost:5298/api/auth/mfa/disable -H "Authorization: Bearer $EMP_TOKEN" \
+curl -s -X POST http://localhost:5298/api/v1/auth/mfa/disable -H "Authorization: Bearer $EMP_TOKEN" \
   -H "Content-Type: application/json" -d '{"code":"<fresh 6-digit code, or one of the recovery codes>"}'
 ```
 **Expected:** `200`, `"MFA has been disabled"`.

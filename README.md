@@ -65,4 +65,4 @@ src/
 - [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — product vision, roles/tenancy model, full frontend + backend architecture, known gaps, conventions.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — diagrams: system overview, backend layers, request lifecycle, multi-tenancy scoping, auth flow, routing, data model, module map.
 - [`src/components/README.md`](./src/components/README.md) — UI foundation / design token build notes.
-- Cross-repo docs (shared, one level up): `Project_Docs/Audit_Flow_Docs/4 - BACKEND_INTEGRATION_GUIDE.md` is the authoritative API contract reference — read it before any backend integration work.
+- [`Documents/4 - BACKEND_INTEGRATION_GUIDE.md`](./Documents/4%20-%20BACKEND_INTEGRATION_GUIDE.md) — the authoritative API contract reference — read it before any backend integration work. The `Documents/` folder also holds the original requirements doc, API spec, visual mockup, architecture/database/auth-testing references, and the product blueprint — browse it directly for the full set.
