@@ -26,7 +26,7 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { PlatformAdminShell } from "./components/layout/PlatformAdminShell";
-import { CreateTenantPage, SystemOverviewPage, TenantDetailPage, TenantListPage } from "./pages/PlatformAdminPages";
+import { AuditLogPage, CreateTenantPage, SystemOverviewPage, TenantDetailPage, TenantListPage } from "./pages/PlatformAdminPages";
 import "./index.css";
 
 function PublicPage({ route }: { route: RouteMeta }) {
@@ -66,7 +66,7 @@ function ProtectedRoute({ route }: { route: RouteMeta }) {
   }
 
   if (route.path.startsWith("/admin/")) {
-    return <PlatformAdminShell>{route.path === "/admin/tenants" ? <TenantListPage /> : route.path === "/admin/tenants/new" ? <CreateTenantPage /> : route.path === "/admin/tenants/:tenantId" ? <TenantDetailPage /> : route.path === "/admin/system" ? <SystemOverviewPage /> : <PlaceholderPage route={route} />}</PlatformAdminShell>;
+    return <PlatformAdminShell>{route.path === "/admin/tenants" ? <TenantListPage /> : route.path === "/admin/tenants/new" ? <CreateTenantPage /> : route.path === "/admin/tenants/:tenantId" ? <TenantDetailPage /> : route.path === "/admin/system" ? <SystemOverviewPage /> : route.path === "/admin/audit-log" ? <AuditLogPage /> : <PlaceholderPage route={route} />}</PlatformAdminShell>;
   }
 
   return (

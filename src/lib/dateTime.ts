@@ -15,6 +15,15 @@ export function toEndOfDayIso(dateOnly: string): string {
   return new Date(`${dateOnly}T23:59:59`).toISOString();
 }
 
+/** Converts a plain "YYYY-MM-DD" into a start-of-local-day ISO timestamp before sending it to the
+ * backend as a range's lower bound. Sending the bare date string instead would have ASP.NET parse
+ * it as midnight with no timezone info, compared directly against UTC-instant CreatedAt values —
+ * for IST (UTC+5:30) that's 5.5 hours off from the user's actual local midnight, wrongly excluding
+ * the first stretch of "today". Same reasoning as toEndOfDayIso, applied to the other end. */
+export function toStartOfDayIso(dateOnly: string): string {
+  return new Date(`${dateOnly}T00:00:00`).toISOString();
+}
+
 /** Normalizes an API datetime string before constructing a Date from it. EF Core reads SQL
  * Server's timezone-less `datetime2` columns back with DateTimeKind.Unspecified, so the backend
  * often serializes timestamps without a trailing "Z" even though the underlying value is always

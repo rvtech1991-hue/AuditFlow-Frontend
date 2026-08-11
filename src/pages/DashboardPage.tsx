@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, CellPerson, DonutChart, Table, Tooltip, TrendChart } from "../components/ui";
 import type { DashboardTask } from "../mock-data/dashboard";
 import { useRole } from "../lib/RoleContext";
+import { todayDateInputValue } from "../lib/dateTime";
 import {
   getAnnouncements,
   getDashboardCompanyScope,
@@ -155,9 +156,9 @@ function StandardDashboard() {
   );
 }
 
-type ExecutiveFilterState = { companyId: string; subCompanyId: string; dateRange: string; status: string };
+type ExecutiveFilterState = { companyId: string; subCompanyId: string; dateRange: string; customFrom: string; customTo: string; status: string };
 
-const defaultFilterState: ExecutiveFilterState = { companyId: "", subCompanyId: "", dateRange: "last8weeks", status: "all" };
+const defaultFilterState: ExecutiveFilterState = { companyId: "", subCompanyId: "", dateRange: "last8weeks", customFrom: "", customTo: "", status: "all" };
 
 function ExecutiveDashboard() {
   const { role } = useRole();
@@ -188,14 +189,20 @@ function ExecutiveDashboard() {
   // Status now has a real server-side equivalent on the KPIs/trend/status-mix endpoints (see
   // ApplyStatusFilter in DashboardRepository) — Company health/risk-tasks/team-workload
   // deliberately stay unfiltered by it, matching how they already ignore company/date scope.
+  const isCustomRange = applied.dateRange === "custom";
   const filters: ExecutiveFilters = {
     companyId: applied.companyId || undefined,
     companyName: appliedCompany?.name,
     subCompanyId: applied.subCompanyId || undefined,
-    dateRange: applied.dateRange,
+    // Sending both dateRange and dateFrom/dateTo would be ambiguous about which one the backend
+    // should honor - ResolveDateWindow does prefer the explicit pair, but there's no reason to
+    // rely on that precedence when omitting dateRange entirely says the same thing more directly.
+    dateRange: isCustomRange ? undefined : applied.dateRange,
+    dateFrom: isCustomRange ? applied.customFrom || undefined : undefined,
+    dateTo: isCustomRange ? applied.customTo || undefined : undefined,
     status: applied.status !== "all" ? applied.status : undefined,
   };
-  const filterKey = [role, filters.companyId, filters.subCompanyId, filters.dateRange, filters.status] as const;
+  const filterKey = [role, filters.companyId, filters.subCompanyId, filters.dateRange, filters.dateFrom, filters.dateTo, filters.status] as const;
 
   const kpisQuery = useQuery({ queryKey: ["exec-kpis", ...filterKey], queryFn: () => getExecutiveKpis(role, filters) });
   const trendQuery = useQuery({ queryKey: ["exec-trend", ...filterKey], queryFn: () => getExecutiveTrend(role, filters) });
@@ -267,11 +274,40 @@ function ExecutiveDashboard() {
           <label>
             Date range
             <select value={pending.dateRange} onChange={(event) => { const value = event.currentTarget.value; setPending((p) => ({ ...p, dateRange: value })); }}>
-              <option value="last8weeks">Last 8 weeks</option><option value="last30days">Last 30 days</option><option value="lastquarter">Last quarter</option>
+              <option value="last8weeks">Last 8 weeks</option><option value="last30days">Last 30 days</option><option value="lastquarter">Last quarter</option><option value="custom">Custom range…</option>
             </select>
           </label>
-          <Button variant="primary" onClick={() => setApplied(pending)}>Apply filters</Button>
+          <Button
+            variant="primary"
+            disabled={pending.dateRange === "custom" && (!pending.customFrom || !pending.customTo)}
+            onClick={() => setApplied(pending)}
+          >
+            Apply filters
+          </Button>
         </div>
+        {pending.dateRange === "custom" ? (
+          <div className="filter-grid filter-grid-custom-dates">
+            <label>
+              From
+              <input
+                type="date"
+                value={pending.customFrom}
+                max={pending.customTo || todayDateInputValue()}
+                onChange={(event) => { const value = event.currentTarget.value; setPending((p) => ({ ...p, customFrom: value })); }}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="date"
+                value={pending.customTo}
+                min={pending.customFrom || undefined}
+                max={todayDateInputValue()}
+                onChange={(event) => { const value = event.currentTarget.value; setPending((p) => ({ ...p, customTo: value })); }}
+              />
+            </label>
+          </div>
+        ) : null}
         <p>{isCompanyAdmin ? "Company is locked to your organization; every chart below is scoped to that company." : "Every chart below recalculates from these filters."}</p>
       </Card>
 

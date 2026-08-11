@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { routes } from "../../lib/routes";
 import { useRole } from "../../lib/RoleContext";
 import { API_MODE } from "../../lib/config";
+import { useClickOutside } from "../../lib/useClickOutside";
 import type { Role } from "../../types";
 import { GlobalSearch } from "./GlobalSearch";
 import { getUnreadCount } from "../../services/notifications";
@@ -29,6 +30,10 @@ export function Topbar() {
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const initials = user.name.split(" ").map((part) => part[0]).join("").slice(0, 2);
+  const roleMenuRef = useRef<HTMLDivElement>(null);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(roleMenuRef, () => setRoleMenuOpen(false), roleMenuOpen);
+  useClickOutside(avatarMenuRef, () => setAvatarMenuOpen(false), avatarMenuOpen);
 
   return (
     <header className="topbar">
@@ -52,7 +57,7 @@ export function Topbar() {
         </NavLink>
 
         {API_MODE === "mock" ? (
-          <div className="role-switcher">
+          <div className="role-switcher" ref={roleMenuRef}>
             <button
               className={`role-switcher-trigger ${roleMenuOpen ? "is-open" : ""}`}
               type="button"
@@ -95,7 +100,7 @@ export function Topbar() {
           </div>
         )}
 
-        <div className="avatar-menu-wrap">
+        <div className="avatar-menu-wrap" ref={avatarMenuRef}>
           <button
             className={`avatar topbar-avatar ${avatarMenuOpen ? "is-open" : ""}`}
             type="button"

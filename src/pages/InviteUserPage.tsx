@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
@@ -13,6 +13,7 @@ const companyAdminRoles: AuditUser["role"][] = ["Employee", "Company admin"];
 export function InviteUserPage() {
   const navigate = useNavigate();
   const { role, user } = useRole();
+  const queryClient = useQueryClient();
   const companiesQuery = useQuery({ queryKey: ["companies", role], queryFn: () => getCompaniesForRole(role) });
   const companies = companiesQuery.data ?? [];
   const allowedRoles = role === "Company admin" ? companyAdminRoles : auditorRoles;
@@ -89,6 +90,10 @@ export function InviteUserPage() {
         reportingManagerId: isAuditorInvite ? undefined : reportingManagerId || undefined,
         reportingManagerName: isAuditorInvite ? undefined : manager?.name,
       });
+      // Without this, the newly invited user is missing from the Users list and from every
+      // "Assign to" dropdown that shares this same query key (e.g. TaskCreatePage) until the
+      // 30s staleTime lapses on its own - every other user-mutating action already does this.
+      await queryClient.invalidateQueries({ queryKey: ["users", role] });
       navigate("/users", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Something went wrong. Please try again.");

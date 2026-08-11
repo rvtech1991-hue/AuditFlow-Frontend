@@ -58,13 +58,16 @@ export function ResetPasswordPage() {
       <AuthShell
         copy={{ quote: "Your password has been reset.", who: "AuditFlow account recovery" }}
       >
-        <div className="auth-confirmation">
-          <span className="auth-confirmation-icon">✓</span>
-          <p>Your password was updated. Sign in with your new password.</p>
+        <div className="signin-form">
+          <h2>Password reset</h2>
+          <div className="auth-confirmation">
+            <span className="auth-confirmation-icon">✓</span>
+            <p>Your password was updated. Sign in with your new password.</p>
+          </div>
+          <Button className="full-width auth-submit" variant="primary" type="button" onClick={() => navigate("/signin", { replace: true })}>
+            Go to sign in
+          </Button>
         </div>
-        <Button className="full-width auth-submit" variant="primary" type="button" onClick={() => navigate("/signin", { replace: true })}>
-          Go to sign in
-        </Button>
       </AuthShell>
     );
   }

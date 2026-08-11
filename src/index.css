@@ -1023,9 +1023,10 @@ table.grid-table tr:hover td {
 .platform-topbar h1, .tenant-form-heading h1, .tenant-detail-heading h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
 .platform-topbar p, .tenant-form-heading p, .tenant-detail-heading p { margin: 3px 0 0; color: var(--text-muted); font-size: 12.5px; }
 .platform-primary { background: linear-gradient(135deg, #b4700b, #e0a340) !important; box-shadow: 0 6px 14px rgba(180,112,11,.28) !important; text-decoration: none; }
-.tenant-table tr { cursor: pointer; }
-.tenant-table tr:focus { outline: 2px solid #e0a340; outline-offset: -2px; }
-.tenant-table td strong { font-size: 13px; }
+.tenant-table-card .grid-table tr { cursor: pointer; }
+.tenant-table-card .grid-table tr:focus { outline: 2px solid #e0a340; outline-offset: -2px; }
+.tenant-table-card .grid-table td strong { font-size: 13px; }
+.tenant-table-card .grid-table td:last-child { width: 52px; }
 .tenant-form-page, .tenant-detail-page { max-width: 940px; }
 .back-link { display: inline-block; margin-bottom: 16px; border: 0; padding: 0; background: transparent; color: #9a640a; font: inherit; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; }
 .tenant-form-card { max-width: 700px; }
@@ -1044,10 +1045,39 @@ table.grid-table tr:hover td {
 .detail-list { display: grid; gap: 12px; margin: 0; }.detail-list div { display: flex; justify-content: space-between; gap: 16px; }.detail-list dt { color: var(--text-muted); font-size: 12px; }.detail-list dd { margin: 0; font-size: 12px; font-weight: 700; }
 .tenant-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }.tenant-metrics div { padding-right: 10px; border-right: 1px solid var(--border); }.tenant-metrics div:last-child { border: 0; }.tenant-metrics strong { display: block; font-size: 23px; }.tenant-metrics span { color: var(--text-muted); font-size: 11px; }.storage-usage { margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }.storage-usage i { color: var(--warning); }
 .detail-contacts { grid-column: span 2; }.detail-contacts .contact-avatar { display: inline-grid; width: 32px; height: 32px; margin-right: 9px; place-items: center; border-radius: 50%; background: var(--warning-bg); color: var(--warning); font-size: 11px; font-weight: 800; vertical-align: middle; }.detail-contacts > strong { margin-right: 8px; font-size: 13px; }.detail-contacts a { color: #9a640a; font-size: 12px; font-weight: 600; text-decoration: none; }.detail-contacts > span { display: block; margin: 8px 0 0 42px; color: var(--text-muted); font-size: 11px; }
-.system-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }.system-metric i { display: block; color: var(--warning); font-size: 18px; }.system-metric span { display: block; margin-top: 13px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }.system-metric strong { display: block; margin-top: 7px; font-size: 25px; }.system-status { max-width: 720px; }.system-status > div { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--border); font-size: 12.5px; }.system-status span { display: flex; align-items: center; gap: 8px; }.system-status span i, .system-status strong { color: var(--success); }.system-status strong { font-size: 12px; }
+.system-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; }
+.system-metrics-hint { margin: 0 0 16px; color: var(--text-muted); font-size: 12px; }
+.system-metric {
+  display: block;
+  position: relative;
+  padding: 20px;
+  border: 1px solid var(--border);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+a.system-metric { cursor: pointer; }
+a.system-metric:hover { border-color: #e0a340; box-shadow: 0 8px 20px rgba(180,112,11,.14); transform: translateY(-1px); }
+a.system-metric:focus-visible { outline: 2px solid #e0a340; outline-offset: 2px; }
+.system-metric-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; background: var(--warning-bg); color: var(--warning); }
+.system-metric-icon i { font-size: 19px; }
+.system-metric span { display: block; margin-top: 16px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.system-metric strong { display: block; margin-top: 6px; font-size: 27px; letter-spacing: -.01em; }
+.system-metric-chevron { position: absolute; top: 18px; right: 18px; color: var(--text-faint); font-size: 15px; opacity: 0; transition: opacity .15s ease, transform .15s ease; }
+a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX(2px); }
+.system-status { max-width: 720px; }.system-status > div { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--border); font-size: 12.5px; }.system-status span { display: flex; align-items: center; gap: 8px; }.system-status span i, .system-status strong { color: var(--success); }.system-status strong { font-size: 12px; }
+
+.audit-log-date-field { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.audit-log-date-field input { height: 34px; border: 1px solid var(--border); border-radius: 999px; padding: 0 12px; background: var(--surface); color: var(--text); outline: none; font-size: 12px; font-weight: 700; }
+.audit-log-date-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 111, 237, .12); }
+.audit-log-details { display: flex; flex-direction: column; gap: 2px; max-width: 260px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.audit-log-old, .audit-log-new { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-log-old { color: var(--danger); text-decoration: line-through; }
+.audit-log-new { color: var(--success); }
 
 @media (max-width: 860px) { .platform-app { flex-direction: column; }.platform-sidebar { width: 100%; flex-direction: row; align-items: center; padding: 12px 16px; overflow-x: auto; }.platform-brand { flex-shrink: 0; padding: 0 14px 0 0; }.platform-nav { display: flex; gap: 4px; }.platform-nav::before, .platform-nav a.active::before { display: none; }.platform-user { margin: 0 0 0 auto; padding: 0 0 0 14px; border: 0; flex-shrink: 0; }.platform-main { padding: 20px; }.system-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 520px) { .platform-main { padding: 16px 12px; }.platform-topbar { align-items: flex-start; flex-direction: column; }.tenant-detail-grid { grid-template-columns: 1fr; }.detail-contacts { grid-column: auto; }.tenant-created { grid-template-columns: 28px 1fr; }.tenant-created button { grid-column: 1 / -1; }.tenant-table-wrap { overflow-x: auto; }.tenant-table { min-width: 650px; } }
+@media (max-width: 520px) { .platform-main { padding: 16px 12px; }.platform-topbar { align-items: flex-start; flex-direction: column; }.tenant-detail-grid { grid-template-columns: 1fr; }.detail-contacts { grid-column: auto; }.tenant-created { grid-template-columns: 28px 1fr; }.tenant-created button { grid-column: 1 / -1; }.tenant-table-wrap { overflow-x: auto; }.tenant-table-wrap .grid-table { min-width: 650px; } }
 
 /* ===== Reports ===== */
 .reports-page { display: grid; gap: 16px; }
@@ -1740,6 +1770,35 @@ table.grid-table tr:hover td {
 .filter-grid select:disabled {
   color: var(--text-muted);
   background: var(--surface-subtle);
+}
+
+/* The rule above never covered <input type="date"> - the Custom range From/To fields fell back
+   to the bare unstyled browser default, next to selects that all match the app's own control
+   styling. `font: inherit` pulled in the parent <label>'s bold/uppercase/letter-spaced styling
+   (meant only for the "From"/"To" label text) into the date *value* too - explicit resets instead
+   so the value renders like the select options next to it, not like a label. */
+.filter-grid input[type="date"] {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 10px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Its own row below the main 4-field grid, not a continuation of it - that fixed
+   repeat(4, ...) auto template has no room for two more fields without spilling the Apply button
+   onto a second, misaligned row. Two selectors (over .filter-grid alone) so this reliably
+   overrides the shared grid-template-columns regardless of stylesheet order. */
+.filter-grid.filter-grid-custom-dates {
+  grid-template-columns: repeat(2, minmax(0, 200px));
+  margin-top: 12px;
 }
 
 .stack-list,

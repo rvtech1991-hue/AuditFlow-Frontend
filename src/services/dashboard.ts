@@ -1,5 +1,6 @@
 import { apiClient, type PagedResult } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
+import { toEndOfDayIso, toStartOfDayIso } from "../lib/dateTime";
 import { displayTaskStatus, mapTaskStatusEnum } from "../lib/taskStatusMapping";
 import { companies, dashboardTasks, workload, type DashboardTask } from "../mock-data/dashboard";
 import { getCompaniesForRole } from "./companies";
@@ -157,6 +158,11 @@ export type ExecutiveFilters = {
   companyName?: string;
   subCompanyId?: string;
   dateRange?: string;
+  // Plain "YYYY-MM-DD" from a date input. Both must be set to activate the "Custom" range —
+  // takes over from dateRange entirely on the backend (ResolveDateWindow) when present, so the
+  // caller should stop sending a preset dateRange once it sets these (DashboardPage does).
+  dateFrom?: string;
+  dateTo?: string;
   status?: string;
 };
 
@@ -220,12 +226,26 @@ export async function getExecutiveKpis(role: Role, filters: ExecutiveFilters): P
     const atRiskCount = scoped.filter((t) => t.status === "overdue").length;
     return { totalTasks, closureRate, avgTimeToClose: 5.8, atRiskCount };
   }
-  return apiClient.get<ExecutiveKpis>("/dashboard/executive/kpis", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
+  return apiClient.get<ExecutiveKpis>("/dashboard/executive/kpis", {
+    companyId: filters.companyId,
+    subCompanyId: filters.subCompanyId,
+    dateRange: filters.dateRange,
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    status: filters.status,
+  });
 }
 
 export async function getExecutiveTrend(role: Role, filters: ExecutiveFilters): Promise<TrendPoint[]> {
   if (API_MODE === "mock") return [];
-  return apiClient.get<TrendPoint[]>("/dashboard/executive/trend", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
+  return apiClient.get<TrendPoint[]>("/dashboard/executive/trend", {
+    companyId: filters.companyId,
+    subCompanyId: filters.subCompanyId,
+    dateRange: filters.dateRange,
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    status: filters.status,
+  });
 }
 
 export async function getExecutiveStatusMix(role: Role, filters: ExecutiveFilters): Promise<StatusMixCounts> {
@@ -245,7 +265,14 @@ export async function getExecutiveStatusMix(role: Role, filters: ExecutiveFilter
       { open: 0, inProgress: 0, resolved: 0, closed: 0, reopened: 0 },
     );
   }
-  const data = await apiClient.get<{ statusCounts: Record<string, number> }>("/dashboard/executive/status-mix", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, status: filters.status });
+  const data = await apiClient.get<{ statusCounts: Record<string, number> }>("/dashboard/executive/status-mix", {
+    companyId: filters.companyId,
+    subCompanyId: filters.subCompanyId,
+    dateRange: filters.dateRange,
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    status: filters.status,
+  });
   const counts = data.statusCounts;
   return { open: counts.Open ?? 0, inProgress: counts.InProgress ?? 0, resolved: counts.Resolved ?? 0, closed: counts.Closed ?? 0, reopened: counts.Reopened ?? 0 };
 }

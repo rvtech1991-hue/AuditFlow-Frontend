@@ -43,7 +43,7 @@ export async function login(email: string, password: string, rememberMe?: boolea
     return mockSignIn(email);
   }
 
-  const data = await apiClient.post<TokenPairResponse>("/auth/login", { email, password, rememberMe });
+  const data = await apiClient.post<TokenPairResponse>("/auth/login", { email, password, rememberMe }, undefined, { skipAuth: true });
 
   if (data.requiresMfa) {
     // No MFA-verification UI exists in this app yet — fail loudly rather than silently
@@ -55,7 +55,7 @@ export async function login(email: string, password: string, rememberMe?: boolea
     });
   }
 
-  setTokens(data.accessToken, data.refreshToken);
+  setTokens(data.accessToken, data.refreshToken, rememberMe);
   return userFromAccessToken(data.accessToken);
 }
 
@@ -73,12 +73,12 @@ export async function logout(): Promise<void> {
 
 export async function forgotPassword(email: string): Promise<void> {
   if (API_MODE === "mock") return;
-  await apiClient.post<void>("/auth/forgot-password", { email });
+  await apiClient.post<void>("/auth/forgot-password", { email }, undefined, { skipAuth: true });
 }
 
 export async function resetPassword(email: string, token: string, newPassword: string): Promise<void> {
   if (API_MODE === "mock") return;
-  await apiClient.post<void>("/auth/reset-password", { email, token, newPassword });
+  await apiClient.post<void>("/auth/reset-password", { email, token, newPassword }, undefined, { skipAuth: true });
 }
 
 export async function validateInvite(token: string): Promise<InviteDetails> {
@@ -102,7 +102,7 @@ export async function validateInvite(token: string): Promise<InviteDetails> {
   // The token is a base64-ish string that can contain "/" and "+" — inserted raw into a path
   // segment, it splits into extra segments the route doesn't match, giving a real 404 from
   // ASP.NET's own routing (not our business-logic 404) with no useful error message.
-  }>(`/invites/validate/${encodeURIComponent(token)}`);
+  }>(`/invites/validate/${encodeURIComponent(token)}`, undefined, { skipAuth: true });
 
   return { ...data, role: mapUserRoleEnum(data.role) };
 }
@@ -112,7 +112,7 @@ export async function acceptInvite(token: string, password: string, confirmPassw
     return mockAcceptInvite();
   }
 
-  const data = await apiClient.post<TokenPairResponse>("/invites/accept", { token, password, confirmPassword });
+  const data = await apiClient.post<TokenPairResponse>("/invites/accept", { token, password, confirmPassword }, undefined, { skipAuth: true });
   setTokens(data.accessToken, data.refreshToken);
   return userFromAccessToken(data.accessToken);
 }

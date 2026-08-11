@@ -25,7 +25,7 @@ function statusBadge(status: AuditUserStatus) {
 
 export function UserManagementPage() {
   const navigate = useNavigate();
-  const { role } = useRole();
+  const { role, user: currentUser } = useRole();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<AuditUserStatus | "All">("All");
@@ -97,24 +97,29 @@ export function UserManagementPage() {
             {
               key: "actions",
               header: "",
-              render: (user) => (
-                <RowActionMenu
-                  actions={[
-                    ...(user.status === "Invited" ? [{
-                      label: "Resend activation link",
-                      icon: "Send",
-                      onClick: () => resendMutation.mutate(user),
-                    }] : []),
-                    {
-                      label: "Deactivate user",
-                      icon: "Deactivate",
-                      destructive: true,
-                      dividerBefore: true,
-                      onClick: () => deactivateMutation.mutate(user),
-                    },
-                  ]}
-                />
-              ),
+              // No row menu at all for your own account — deactivating yourself is a dead end
+              // (the backend rejects it with CANNOT_DEACTIVATE_SELF anyway), so there's nothing
+              // useful this menu could ever do here, only a way to hit a wall or hide behind an
+              // empty dropdown.
+              render: (user) =>
+                user.id === currentUser.id ? null : (
+                  <RowActionMenu
+                    actions={[
+                      ...(user.status === "Invited" ? [{
+                        label: "Resend activation link",
+                        icon: "Send",
+                        onClick: () => resendMutation.mutate(user),
+                      }] : []),
+                      {
+                        label: "Deactivate user",
+                        icon: "Deactivate",
+                        destructive: true,
+                        dividerBefore: true,
+                        onClick: () => deactivateMutation.mutate(user),
+                      },
+                    ]}
+                  />
+                ),
             },
           ]}
         />

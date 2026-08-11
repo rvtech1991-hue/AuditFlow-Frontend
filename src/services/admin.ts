@@ -1,6 +1,7 @@
 import { apiClient, ApiError, type PagedResult } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
-import { createMockTenant, getMockTenantById, getMockTenants, type MockTenant } from "../mock-data/admin";
+import { toEndOfDayIso, toStartOfDayIso } from "../lib/dateTime";
+import { createMockTenant, getMockAuditLog, getMockTenantById, getMockTenants, updateMockTenantStatus, type MockTenant } from "../mock-data/admin";
 
 // Field names verified directly against the backend source (AdminQueries.cs, AdminCommands.cs)
 // rather than guessed — see BACKEND_INTEGRATION_GUIDE SS8. Note: unlike almost everywhere else
@@ -14,6 +15,7 @@ export type TenantEntry = {
   primaryContactEmail: string;
   companiesCount: number;
   usersCount: number;
+  tasksCount: number;
   plan: string;
   status: string;
   createdAt: string;
@@ -51,6 +53,7 @@ type RawAuditorAccountListItem = {
   primaryContactEmail: string;
   companiesCount: number;
   usersCount: number;
+  tasksCount: number;
   plan: string;
   status: string;
   createdAt: string;
@@ -65,7 +68,7 @@ type RawAuditorAccountDetail = RawAuditorAccountListItem & {
 };
 
 function mapTenantListItem(raw: RawAuditorAccountListItem): TenantEntry {
-  return { id: raw.id, firmName: raw.firmName, primaryContactEmail: raw.primaryContactEmail, companiesCount: raw.companiesCount, usersCount: raw.usersCount, plan: raw.plan, status: raw.status, createdAt: raw.createdAt.slice(0, 10) };
+  return { id: raw.id, firmName: raw.firmName, primaryContactEmail: raw.primaryContactEmail, companiesCount: raw.companiesCount, usersCount: raw.usersCount, tasksCount: raw.tasksCount, plan: raw.plan, status: raw.status, createdAt: raw.createdAt.slice(0, 10) };
 }
 
 function mapTenantDetail(raw: RawAuditorAccountDetail): TenantDetail {
@@ -80,7 +83,7 @@ function mapTenantDetail(raw: RawAuditorAccountDetail): TenantDetail {
 }
 
 function mockToEntry(tenant: MockTenant): TenantEntry {
-  return { id: tenant.id, firmName: tenant.firmName, primaryContactEmail: tenant.primaryContactEmail, companiesCount: tenant.companiesCount, usersCount: tenant.usersCount, plan: tenant.plan, status: tenant.status, createdAt: tenant.createdAt };
+  return { id: tenant.id, firmName: tenant.firmName, primaryContactEmail: tenant.primaryContactEmail, companiesCount: tenant.companiesCount, usersCount: tenant.usersCount, tasksCount: tenant.tasksCount, plan: tenant.plan, status: tenant.status, createdAt: tenant.createdAt };
 }
 
 export async function getTenants(): Promise<TenantEntry[]> {
@@ -117,6 +120,28 @@ export async function createTenant(draft: CreateTenantDraft): Promise<TenantEntr
   return mapTenantListItem(data);
 }
 
+// Read DTOs send Status as a string ("Active", "Suspended", ...); the write DTO
+// (UpdateAuditorAccountCommand) takes the real AuditorStatus enum as a number - see the note atop
+// this file (SS8).
+const auditorStatusEnum: Record<"Onboarding" | "Active" | "Suspended" | "Cancelled", number> = {
+  Onboarding: 1,
+  Active: 2,
+  Suspended: 3,
+  Cancelled: 4,
+};
+
+// Callers refetch the tenant list right after (its Status is the string-typed read DTO) rather
+// than trust this endpoint's own response shape - UpdateAuditorAccountCommand's response DTO
+// returns Status as the raw numeric enum and omits tasksCount entirely, neither of which matches
+// TenantEntry, so there's nothing useful to map back here.
+export async function updateTenantStatus(tenantId: string, status: "Active" | "Suspended"): Promise<void> {
+  if (API_MODE === "mock") {
+    updateMockTenantStatus(tenantId, status);
+    return;
+  }
+  await apiClient.patch(`/admin/auditor-accounts/${tenantId}`, { status: auditorStatusEnum[status] });
+}
+
 export async function getPlatformHealth(): Promise<PlatformHealth> {
   if (API_MODE === "mock") {
     const tenants = getMockTenants();
@@ -135,12 +160,72 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   return { ...data, lastBackupAt: data.lastBackupAt ?? undefined };
 }
 
-export type AuditLogEntry = { id: string; entityType: string; entityId: string; action: string; userEmail?: string; createdAt: string };
+export const AUDIT_LOG_PAGE_SIZE = 25;
 
-/** Documented for completeness (SS8) — the current UI has no audit-log screen at all (only a
- * sidebar nav placeholder that falls through to PlaceholderPage), matching the mockup, which
- * also only lists it as a nav item with no designed screen. Not wired to any page. */
-export async function getAuditLog(): Promise<AuditLogEntry[]> {
-  const data = await apiClient.get<PagedResult<{ id: string; entityType: string; entityId: string; action: string; userEmail: string | null; createdAt: string }>>("/admin/audit-log", { pageSize: 50 });
-  return data.items.map((e) => ({ id: e.id, entityType: e.entityType, entityId: e.entityId, action: e.action, userEmail: e.userEmail ?? undefined, createdAt: e.createdAt }));
+export type AuditLogEntry = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  userEmail?: string;
+  oldValues?: string;
+  newValues?: string;
+  createdAt: string;
+};
+
+export type AuditLogPage = {
+  items: AuditLogEntry[];
+  totalCount: number;
+  pageNumber: number;
+  totalPages: number;
+};
+
+export type AuditLogFilters = {
+  entityType?: string;
+  action?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+};
+
+type RawAuditLogEntry = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  oldValues: string | null;
+  newValues: string | null;
+  userEmail: string | null;
+  createdAt: string;
+};
+
+function mapAuditLogEntry(raw: RawAuditLogEntry): AuditLogEntry {
+  return {
+    id: raw.id,
+    entityType: raw.entityType,
+    entityId: raw.entityId,
+    action: raw.action,
+    userEmail: raw.userEmail ?? undefined,
+    oldValues: raw.oldValues ?? undefined,
+    newValues: raw.newValues ?? undefined,
+    createdAt: raw.createdAt,
+  };
+}
+
+export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditLogPage> {
+  const page = filters.page ?? 1;
+  if (API_MODE === "mock") return getMockAuditLog(filters, page, AUDIT_LOG_PAGE_SIZE);
+  const data = await apiClient.get<PagedResult<RawAuditLogEntry>>("/admin/audit-log", {
+    entityType: filters.entityType || undefined,
+    action: filters.action || undefined,
+    // Bare "YYYY-MM-DD" would have ASP.NET parse it as timezone-less midnight and compare directly
+    // against UTC CreatedAt values — for "to" that's basically start-of-day, silently excluding
+    // the entire rest of the selected day (see dateTime.ts). Converting both ends explicitly is
+    // what makes "today" as both From and To actually return today's entries.
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    pageNumber: page,
+    pageSize: AUDIT_LOG_PAGE_SIZE,
+  });
+  return { items: data.items.map(mapAuditLogEntry), totalCount: data.totalCount, pageNumber: data.pageNumber, totalPages: data.totalPages };
 }

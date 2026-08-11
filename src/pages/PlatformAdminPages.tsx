@@ -1,12 +1,14 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge } from "../components/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge, Card, Pagination, RowActionMenu, Table } from "../components/ui";
 import { ApiError } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
-import { createTenant, getPlatformHealth, getTenantById, getTenants } from "../services/admin";
+import { parseApiDateTime } from "../lib/dateTime";
+import { AUDIT_LOG_PAGE_SIZE, createTenant, getAuditLog, getPlatformHealth, getTenantById, getTenants, updateTenantStatus, type AuditLogEntry, type TenantEntry } from "../services/admin";
 
 const formatDate = (value: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`));
+const formatDateTime = (value: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(parseApiDateTime(value));
 const initials = (name: string) => name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
 function formatBytes(bytes: number) {
@@ -24,7 +26,12 @@ function statusToBadge(status: string) {
 
 export function TenantListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const tenantsQuery = useQuery({ queryKey: ["tenants"], queryFn: getTenants });
+  const statusMutation = useMutation({
+    mutationFn: (vars: { tenantId: string; status: "Active" | "Suspended" }) => updateTenantStatus(vars.tenantId, vars.status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenants"] }),
+  });
 
   if (tenantsQuery.isLoading) {
     return <div className="platform-page"><p className="data-state">Loading auditor accounts…</p></div>;
@@ -40,21 +47,60 @@ export function TenantListPage() {
       <header className="platform-topbar"><div><h1>Auditor accounts</h1><p>{tenants.length} firm{tenants.length === 1 ? "" : "s"} on the platform</p></div><Link to="/admin/tenants/new" className="btn primary platform-primary"><i className="ti ti-plus" />Create auditor account</Link></header>
       <section className="card tenant-table-card">
         <div className="tenant-table-wrap">
-          <table className="grid-table tenant-table">
-            <thead><tr><th>Firm</th><th>Primary contact</th><th>Companies</th><th>Users</th><th>Plan</th><th>Status</th></tr></thead>
-            <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant.id} tabIndex={0} role="link" onClick={() => navigate(`/admin/tenants/${tenant.id}`)} onKeyDown={(event) => event.key === "Enter" && navigate(`/admin/tenants/${tenant.id}`)}>
-                  <td><strong>{tenant.firmName}</strong></td>
-                  <td>{tenant.primaryContactEmail}</td>
-                  <td>{tenant.companiesCount}</td>
-                  <td>{tenant.usersCount}</td>
-                  <td>{tenant.plan}</td>
-                  <td><Badge status={statusToBadge(tenant.status)} label={tenant.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table<TenantEntry>
+            rows={tenants}
+            onRowClick={(tenant) => navigate(`/admin/tenants/${tenant.id}`)}
+            emptyState="No auditor accounts yet."
+            columns={[
+              { key: "firmName", header: "Firm", render: (tenant) => <strong>{tenant.firmName}</strong> },
+              { key: "primaryContactEmail", header: "Primary contact" },
+              { key: "companiesCount", header: "Companies", align: "left" },
+              { key: "usersCount", header: "Users", align: "left" },
+              { key: "tasksCount", header: "Tasks", align: "left" },
+              { key: "plan", header: "Plan", align: "left" },
+              { key: "status", header: "Status", align: "left", render: (tenant) => <Badge status={statusToBadge(tenant.status)} label={tenant.status} /> },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                // Suspended accounts stay a licensing/access lever, not a data-loss action - there's
+                // no "Cancelled" option here, that's a separate, more permanent decision this menu
+                // deliberately doesn't offer. Every new tenant starts in Onboarding (Tenant.cs) and
+                // nothing ever auto-promotes it - a PlatformAdmin has to explicitly activate it,
+                // same status-update endpoint as suspend/reactivate.
+                render: (tenant) => {
+                  const isOnboarding = tenant.status === "Onboarding";
+                  const isActive = tenant.status === "Active";
+                  const isSuspended = tenant.status === "Suspended";
+                  if (!isOnboarding && !isActive && !isSuspended) return null;
+                  return (
+                    <span onClick={(event) => event.stopPropagation()}>
+                      <RowActionMenu
+                        actions={[
+                          ...(isOnboarding ? [{
+                            label: "Activate account",
+                            icon: "Restore",
+                            onClick: () => statusMutation.mutate({ tenantId: tenant.id, status: "Active" }),
+                          }] : []),
+                          ...(isActive ? [{
+                            label: "Suspend account",
+                            icon: "Deactivate",
+                            destructive: true,
+                            onClick: () => statusMutation.mutate({ tenantId: tenant.id, status: "Suspended" }),
+                          }] : []),
+                          ...(isSuspended ? [{
+                            label: "Reactivate account",
+                            icon: "Restore",
+                            onClick: () => statusMutation.mutate({ tenantId: tenant.id, status: "Active" }),
+                          }] : []),
+                        ]}
+                      />
+                    </span>
+                  );
+                },
+              },
+            ]}
+          />
         </div>
       </section>
     </>
@@ -192,6 +238,7 @@ export function SystemOverviewPage() {
         <Metric label="Total companies" value={health.totalCompanies.toLocaleString()} icon="ti-building" />
         <Metric label="Total tasks" value={health.totalTasks.toLocaleString()} icon="ti-checkbox" />
       </div>
+      <p className="system-metrics-hint">Click any card to see the per-firm breakdown behind that number.</p>
       {API_MODE === "mock" ? (
         <section className="card system-status">
           <h2 className="card-title">Service health</h2>
@@ -211,6 +258,132 @@ export function SystemOverviewPage() {
   );
 }
 
+const entityTypeOptions = ["ApplicationUser", "Tenant", "Company", "SubCompany", "TaskItem"];
+const actionOptions = [
+  "Created", "Updated", "Deleted", "StatusChanged", "Assigned", "CommentAdded",
+  "AttachmentUploaded", "AttachmentDeleted", "UserInvited", "UserActivated", "UserDeactivated",
+  "CompanyCreated", "CompanyUpdated", "SubCompanyCreated", "SubCompanyUpdated", "BulkImport",
+  "Login", "Logout", "PasswordChanged", "MfaEnabled", "MfaDisabled", "Impersonation",
+];
+// "UserDeactivated" -> "User deactivated" — splits on the enum's PascalCase word boundaries
+// rather than maintaining a separate label for all 22 AuditAction values.
+const actionLabel = (action: string) => action.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+
+export function AuditLogPage() {
+  const [entityType, setEntityType] = useState("");
+  const [action, setAction] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+
+  const setFilterAndResetPage = <T,>(setter: (value: T) => void, value: T) => {
+    setter(value);
+    setPage(1);
+  };
+
+  const auditLogQuery = useQuery({
+    queryKey: ["admin", "audit-log", entityType, action, dateFrom, dateTo, page],
+    queryFn: () => getAuditLog({ entityType: entityType || undefined, action: action || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined, page }),
+  });
+
+  const rows = auditLogQuery.data?.items ?? [];
+  const totalCount = auditLogQuery.data?.totalCount ?? 0;
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * AUDIT_LOG_PAGE_SIZE + 1;
+  const rangeEnd = totalCount === 0 ? 0 : rangeStart + rows.length - 1;
+
+  return (
+    <>
+      <header className="platform-topbar"><div><h1>Audit log</h1><p>Platform-wide administrative activity across every firm.</p></div></header>
+      <Card className="audit-log-card">
+        <div className="task-filter-row">
+          <select value={entityType} onChange={(event) => setFilterAndResetPage(setEntityType, event.currentTarget.value)}>
+            <option value="">Entity: All</option>
+            {entityTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+          <select value={action} onChange={(event) => setFilterAndResetPage(setAction, event.currentTarget.value)}>
+            <option value="">Action: All</option>
+            {actionOptions.map((option) => <option key={option} value={option}>{actionLabel(option)}</option>)}
+          </select>
+          <label className="audit-log-date-field">
+            From
+            <input type="date" value={dateFrom} onChange={(event) => setFilterAndResetPage(setDateFrom, event.currentTarget.value)} />
+          </label>
+          <label className="audit-log-date-field">
+            To
+            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setFilterAndResetPage(setDateTo, event.currentTarget.value)} />
+          </label>
+          {entityType || action || dateFrom || dateTo ? (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setEntityType("");
+                setAction("");
+                setDateFrom("");
+                setDateTo("");
+                setPage(1);
+              }}
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+
+        {auditLogQuery.isLoading ? (
+          <p className="data-state">Loading audit log…</p>
+        ) : auditLogQuery.error ? (
+          <p className="data-state is-error">{auditLogQuery.error instanceof ApiError ? auditLogQuery.error.detail : "Couldn't load the audit log."}</p>
+        ) : (
+          <Table<AuditLogEntry>
+            rows={rows}
+            emptyState="No activity matches the selected filters."
+            columns={[
+              { key: "createdAt", header: "When", render: (entry) => formatDateTime(entry.createdAt) },
+              { key: "userEmail", header: "Actor", render: (entry) => entry.userEmail ?? <span className="muted-cell">System</span> },
+              { key: "action", header: "Action", render: (entry) => actionLabel(entry.action) },
+              {
+                key: "entityType",
+                header: "Entity",
+                render: (entry) => (
+                  <span>
+                    {entry.entityType}
+                    <small className="table-subline">{entry.entityId}</small>
+                  </span>
+                ),
+              },
+              {
+                key: "newValues",
+                header: "Details",
+                render: (entry) =>
+                  entry.newValues || entry.oldValues ? (
+                    <span className="audit-log-details">
+                      {entry.oldValues ? <span className="audit-log-old">{entry.oldValues}</span> : null}
+                      {entry.newValues ? <span className="audit-log-new">{entry.newValues}</span> : null}
+                    </span>
+                  ) : (
+                    <span className="muted-cell">—</span>
+                  ),
+              },
+            ]}
+          />
+        )}
+
+        <div className="pagination-footer">
+          <span>Showing {rangeStart}-{rangeEnd} of {totalCount} entries</span>
+          <Pagination page={page} totalPages={auditLogQuery.data?.totalPages ?? 1} onChange={setPage} />
+        </div>
+      </Card>
+    </>
+  );
+}
+
 function Metric({ label, value, icon }: { label: string; value: string; icon: string }) {
-  return <section className="card system-metric"><i className={`ti ${icon}`} /><span>{label}</span><strong>{value}</strong></section>;
+  return (
+    <Link className="card system-metric" to="/admin/tenants" title={`See the per-firm breakdown for ${label.toLowerCase()}`}>
+      <span className="system-metric-icon"><i className={`ti ${icon}`} /></span>
+      <i className="ti ti-chevron-right system-metric-chevron" aria-hidden="true" />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </Link>
+  );
 }

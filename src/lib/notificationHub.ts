@@ -20,6 +20,12 @@ export function connectNotificationHub(): void {
 
   connection.on("ReceiveNotification", () => {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    // A new notification almost always means a task changed under this user (assigned,
+    // reassigned, commented, status changed) - the sidebar's Tasks badge (dashboard summary)
+    // and any open Tasks list are separate cached queries that this push previously never told
+    // to refresh, so they'd sit stale until an unrelated remount happened to refetch them.
+    queryClient.invalidateQueries({ queryKey: ["dashboard", "summary"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
   });
 
   connection.start().catch((error) => {

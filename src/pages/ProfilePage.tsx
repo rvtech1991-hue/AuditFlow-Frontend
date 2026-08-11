@@ -97,10 +97,20 @@ function PasswordSection() {
 
   // Changing the password revokes every refresh token server-side (ChangeUserPasswordCommandHandler),
   // so this session dies on its next silent-refresh regardless — sign out proactively instead of
-  // leaving a session on screen that looks fine but will break a moment later.
+  // leaving a session on screen that looks fine but will break a moment later. The copy says
+  // "signing you out" so it needs to actually happen on its own, not wait on a click.
+  useEffect(() => {
+    if (!mutation.isSuccess) return;
+    const timer = window.setTimeout(() => {
+      signOut();
+      navigate("/signin", { replace: true });
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [mutation.isSuccess, signOut, navigate]);
+
   if (mutation.isSuccess) {
     return (
-      <div>
+      <div className="password-form">
         <p className="form-hint">Password changed. Signing you out — sign back in with your new password.</p>
         <Button type="button" variant="primary" onClick={() => { signOut(); navigate("/signin", { replace: true }); }}>
           Go to sign in

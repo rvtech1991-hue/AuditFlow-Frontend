@@ -126,14 +126,14 @@ export function TaskCreatePage() {
         <form className="task-create-form" onSubmit={handleSubmit}>
           <div className="field">
             <label>Title</label>
-            <input value={title} onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.currentTarget.value)} placeholder="Inventory count mismatch - warehouse 3" required />
+            <input value={title} onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.currentTarget.value)} placeholder="e.g., Inventory count mismatch - Warehouse 3" required />
           </div>
           <div className="field">
             <label>Description</label>
             <textarea
               value={description}
               onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setDescription(event.currentTarget.value)}
-              placeholder="Describe the discrepancy, expected vs. actual figures."
+              placeholder="What did you find, and what was expected instead? Include figures if relevant."
               required
             />
           </div>
@@ -199,7 +199,7 @@ export function TaskCreatePage() {
           </label>
 
           <div className="modal-footer-actions">
-            <button className="btn" type="button" onClick={() => navigate("/tasks")}>Cancel</button>
+            <button className="btn" type="button" onClick={() => navigate("/tasks")}>{submittedTaskNumber ? "Close" : "Cancel"}</button>
             <button className="btn primary" type="submit" disabled={!canSubmit}>{isSubmitting ? "Creating..." : submittedTaskNumber ? "Create another" : "Create task"}</button>
           </div>
         </form>

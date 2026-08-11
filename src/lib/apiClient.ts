@@ -127,14 +127,23 @@ type RequestOptions = {
   isFormData?: boolean;
   /** Internal — prevents infinite retry loops after a refresh attempt. */
   _isRetry?: boolean;
+  /** Public, pre-login endpoints (sign-in, forgot/reset password, invite validate/accept) must
+   * never send whatever access token happens to be sitting in localStorage from a *different*,
+   * unrelated session in the same browser — the backend's tenant-scoped query filters key off
+   * "is there any authenticated principal at all", so a stale token silently made otherwise-valid
+   * requests (e.g. looking up an invite by its own secret token) fail as if the resource didn't
+   * exist. Also skips the 401-triggered refresh/sign-out flow, which doesn't apply here either. */
+  skipAuth?: boolean;
 };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", params, body, isFormData, _isRetry } = options;
+  const { method = "GET", params, body, isFormData, _isRetry, skipAuth } = options;
 
   const headers: Record<string, string> = {};
-  const accessToken = getAccessToken();
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (!skipAuth) {
+    const accessToken = getAccessToken();
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  }
   if (!isFormData) headers["Content-Type"] = "application/json";
 
   const response = await fetch(buildUrl(path, params), {
@@ -143,7 +152,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
   });
 
-  if (response.status === 401 && !_isRetry) {
+  if (response.status === 401 && !_isRetry && !skipAuth) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       return request<T>(path, { ...options, _isRetry: true });
@@ -172,8 +181,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const apiClient = {
-  get: <T>(path: string, params?: Record<string, unknown>) => request<T>(path, { method: "GET", params }),
-  post: <T>(path: string, body?: unknown, params?: Record<string, unknown>) => request<T>(path, { method: "POST", body, params }),
+  get: <T>(path: string, params?: Record<string, unknown>, options?: { skipAuth?: boolean }) =>
+    request<T>(path, { method: "GET", params, skipAuth: options?.skipAuth }),
+  post: <T>(path: string, body?: unknown, params?: Record<string, unknown>, options?: { skipAuth?: boolean }) =>
+    request<T>(path, { method: "POST", body, params, skipAuth: options?.skipAuth }),
   put: <T>(path: string, body?: unknown, params?: Record<string, unknown>) => request<T>(path, { method: "PUT", body, params }),
   patch: <T>(path: string, body?: unknown, params?: Record<string, unknown>) => request<T>(path, { method: "PATCH", body, params }),
   delete: <T>(path: string, params?: Record<string, unknown>) => request<T>(path, { method: "DELETE", params }),
