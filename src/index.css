@@ -1018,6 +1018,12 @@ table.grid-table tr:hover td {
 .platform-user small { margin-top: 2px; color: rgba(255,255,255,.5); font-size: 11px; }
 .platform-avatar { background: linear-gradient(135deg, #b4700b, #e0a340); }
 .platform-user button { margin-left: auto; border: 0; padding: 5px; background: transparent; color: rgba(255,255,255,.62); cursor: pointer; }
+/* .platform-user button (class+element) otherwise outranks the shared .sidebar-logout class
+   alone, so its transparent background wins at rest and only .sidebar-logout:hover (two classes)
+   was strong enough to show red - the button looked unstyled until hover. Re-assert the intended
+   styling here with matching specificity. */
+.platform-user .sidebar-logout { margin-left: auto; background: rgba(214, 48, 63, .16); color: #FF9B9B; }
+.platform-user .sidebar-logout:hover { background: var(--danger); color: #fff; }
 .platform-main { flex: 1; min-width: 0; padding: 26px 30px; }
 .platform-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .platform-topbar h1, .tenant-form-heading h1, .tenant-detail-heading h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }

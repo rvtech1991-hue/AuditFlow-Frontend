@@ -18,7 +18,7 @@ export function connectNotificationHub(): void {
     .configureLogging(LogLevel.Warning)
     .build();
 
-  connection.on("ReceiveNotification", () => {
+  const invalidateNotificationDrivenQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
     // A new notification almost always means a task changed under this user (assigned,
     // reassigned, commented, status changed) - the sidebar's Tasks badge (dashboard summary)
@@ -26,7 +26,15 @@ export function connectNotificationHub(): void {
     // to refresh, so they'd sit stale until an unrelated remount happened to refetch them.
     queryClient.invalidateQueries({ queryKey: ["dashboard", "summary"] });
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
-  });
+  };
+
+  connection.on("ReceiveNotification", invalidateNotificationDrivenQueries);
+
+  // Any gap between disconnect and reconnect can silently drop a push that fired while this
+  // client was offline (e.g. a bulk import notified this user right as the socket dropped) -
+  // reconnecting has no way to replay missed events, so treat it as "assume something changed"
+  // and re-sync from the server instead of trusting the stale cache.
+  connection.onreconnected(invalidateNotificationDrivenQueries);
 
   connection.start().catch((error) => {
     // A missed real-time push isn't fatal — Topbar's polling fallback still covers it.

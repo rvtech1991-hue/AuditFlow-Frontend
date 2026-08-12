@@ -161,7 +161,7 @@ function MockBulkCreatePage() {
           ) : <p className="page-subtitle">All valid rows have been imported. Upload another file to continue.</p>}
           </div>
         ) : <p className="bulk-empty-note">Upload a completed template to preview valid rows and fix any issues before import.</p>}
-        <div className="modal-footer-actions"><Button type="button" onClick={() => navigate("/tasks")}>Cancel</Button><Button variant="primary" disabled={!validRows.length} onClick={importValidRows}>Import {validRows.length || ""} tasks</Button></div>
+        <div className="modal-footer-actions"><Button type="button" onClick={() => navigate("/tasks")}>{importedCount ? "Close" : "Cancel"}</Button><Button variant="primary" disabled={!validRows.length} onClick={importValidRows}>Import {validRows.length || ""} tasks</Button></div>
       </section>
     </main>
   );
@@ -330,7 +330,7 @@ function LiveBulkCreatePage() {
           ) : <p className="page-subtitle">All valid rows have been imported. Upload another file to continue.</p>}
           </div>
         ) : <p className="bulk-empty-note">Upload a completed template to preview valid rows and fix any issues before import.</p>}
-        <div className="modal-footer-actions"><Button type="button" onClick={() => navigate("/tasks")}>Cancel</Button><Button variant="primary" disabled={!validRows.length || isImporting} onClick={importValidRows}>Import {validRows.length || ""} tasks</Button></div>
+        <div className="modal-footer-actions"><Button type="button" onClick={() => navigate("/tasks")}>{importedCount ? "Close" : "Cancel"}</Button><Button variant="primary" disabled={!validRows.length || isImporting} onClick={importValidRows}>Import {validRows.length || ""} tasks</Button></div>
       </section>
     </main>
   );

@@ -47,11 +47,32 @@ function statusLabel(status: TaskStatus) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function statusOptionsForRole(role: Role): Array<Exclude<TaskStatus, "overdue">> {
-  const base: Array<Exclude<TaskStatus, "overdue">> = ["open", "progress", "resolved", "closed", "reopened"];
-  // Only an Auditor can move a task to Closed or Reopened (BACKEND_INTEGRATION_GUIDE SS1).
-  if (role === "Auditor") return base;
-  return base.filter((status) => status !== "closed" && status !== "reopened");
+// Mirrors TaskItem.CanChangeStatus on the backend exactly: an Employee can only move
+// Open->InProgress, InProgress->Resolved/Open, or Resolved->InProgress, and can never touch a
+// Closed or Reopened task at all (dead end - must wait for an Auditor). Offering anything wider
+// here just lets the user pick a status the PATCH will then reject.
+const EMPLOYEE_TRANSITIONS: Partial<Record<Exclude<TaskStatus, "overdue">, Array<Exclude<TaskStatus, "overdue">>>> = {
+  open: ["progress"],
+  progress: ["resolved", "open"],
+  resolved: ["progress"],
+};
+
+function statusOptionsForRole(role: Role, currentStatus: Exclude<TaskStatus, "overdue">): Array<Exclude<TaskStatus, "overdue">> {
+  if (role === "Auditor") {
+    // The backend places no sequence restriction on an Auditor at all (TaskItem.CanChangeStatus
+    // returns true unconditionally for Auditor/PlatformAdmin) - but the *current* status must
+    // always be included as one of the options, or a dropdown left with only a single remaining
+    // choice can never register a change (there's nothing to select away from - the browser
+    // already shows it as selected, so picking it again fires no onChange event at all).
+    if (currentStatus === "closed") return ["closed", "reopened"];
+    if (currentStatus === "reopened") return ["reopened", "progress", "resolved", "closed"];
+    return ["open", "progress", "resolved", "closed"];
+  }
+
+  // Employee: exact mirror of the backend dictionary above, plus the current status so the
+  // select always has something to move away from.
+  const nextOptions = EMPLOYEE_TRANSITIONS[currentStatus] ?? [];
+  return nextOptions.length ? [currentStatus, ...nextOptions] : [];
 }
 
 function OverviewTab({
@@ -60,6 +81,7 @@ function OverviewTab({
   onSaveFields,
   onReassign,
   onStatusChange,
+  onRequestReopen,
   isSaving,
   isStatusSaving,
 }: {
@@ -68,6 +90,7 @@ function OverviewTab({
   onSaveFields: (fields: { title: string; description: string; priority: TaskPriority; dueDate: string }) => void;
   onReassign: (assigneeId: string, assigneeName: string) => void;
   onStatusChange: (status: Exclude<TaskStatus, "overdue">) => void;
+  onRequestReopen: () => void;
   isSaving: boolean;
   isStatusSaving: boolean;
 }) {
@@ -91,7 +114,8 @@ function OverviewTab({
   }, [task.id, task.title, task.description, task.priority, task.dueDate]);
 
   const dirty = title !== task.title || description !== task.description || priority !== task.priority || dueDate !== task.dueDate;
-  const visibleStatusOptions = statusOptionsForRole(role);
+  const currentStatus = task.status === "overdue" ? "open" : task.status;
+  const visibleStatusOptions = statusOptionsForRole(role, currentStatus);
 
   return (
     <div className="task-details-grid">
@@ -144,8 +168,21 @@ function OverviewTab({
             </label>
             <label>
               Status
-              <select value={task.status === "overdue" ? "open" : task.status} onChange={(event) => onStatusChange(event.currentTarget.value as Exclude<TaskStatus, "overdue">)} disabled={!canChangeStatus || isStatusSaving}>
-                {visibleStatusOptions.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+              <select
+                value={currentStatus}
+                onChange={(event) => {
+                  const next = event.currentTarget.value as Exclude<TaskStatus, "overdue">;
+                  // Reopening always requires a reason — hand off to the header's Reopen modal
+                  // instead of firing a bare status PATCH that the backend would reject.
+                  if (next === "reopened") {
+                    onRequestReopen();
+                    return;
+                  }
+                  onStatusChange(next);
+                }}
+                disabled={!canChangeStatus || isStatusSaving || visibleStatusOptions.length === 0}
+              >
+                {(visibleStatusOptions.length ? visibleStatusOptions : [currentStatus]).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
               </select>
               {/* Status saves immediately on change — it's a separate PATCH from the "Save
                   changes" button below, which only covers title/description/priority/due date. */}
@@ -325,6 +362,15 @@ export function TaskDetailsPage() {
   const taskQuery = useQuery({ queryKey: ["task", taskId], queryFn: () => getTaskDetail(taskId, role, user.email), enabled: Boolean(taskId) });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["task", taskId] });
+  // Status/assignee changes shift which bucket this task falls into for the sidebar's Tasks
+  // badge (dashboard summary), the grid, and reports — invalidate those alongside the task
+  // itself so the counts update immediately instead of waiting for a poll or a page reload.
+  const invalidateTaskCounts = () => {
+    invalidate();
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["report"] });
+  };
   const saveFieldsMutation = useMutation({
     mutationFn: (fields: { title: string; description: string; priority: TaskPriority; dueDate: string }) => updateTask(taskId, fields),
     onSuccess: () => {
@@ -336,7 +382,7 @@ export function TaskDetailsPage() {
   const reassignMutation = useMutation({
     mutationFn: ({ assigneeId, assigneeName }: { assigneeId: string; assigneeName: string }) => assignTask(taskId, assigneeId, assigneeName),
     onSuccess: () => {
-      invalidate();
+      invalidateTaskCounts();
       setToast({ kind: "success", message: "Task reassigned successfully." });
     },
     onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't reassign this task." }),
@@ -344,7 +390,7 @@ export function TaskDetailsPage() {
   const statusMutation = useMutation({
     mutationFn: ({ status, reason }: { status: Exclude<TaskStatus, "overdue">; reason?: string }) => changeTaskStatus(taskId, status, user.name, reason),
     onSuccess: (_data, variables) => {
-      invalidate();
+      invalidateTaskCounts();
       setToast({ kind: "success", message: `Status updated to "${statusLabel(variables.status)}".` });
     },
     onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't update the status." }),
@@ -428,6 +474,7 @@ export function TaskDetailsPage() {
           onSaveFields={(fields) => saveFieldsMutation.mutate(fields)}
           onReassign={(assigneeId, assigneeName) => reassignMutation.mutate({ assigneeId, assigneeName })}
           onStatusChange={(status) => changeStatus(status)}
+          onRequestReopen={() => setReopenModalOpen(true)}
         />
       ) : null}
       {activeTab === "comments" ? <CommentsTab task={task} canComment={canComment} /> : null}

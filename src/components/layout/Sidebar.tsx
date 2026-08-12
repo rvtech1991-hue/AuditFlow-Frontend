@@ -13,8 +13,16 @@ export function Sidebar() {
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
   // Same query key the Dashboard page uses — TanStack Query dedupes/shares the cached result
   // rather than firing a second request just because the sidebar renders on every page.
+  // SignalR (src/lib/notificationHub.ts) invalidates this instantly on a live push; the poll and
+  // focus refetch below are just a backstop for a missed/dropped socket event.
   const showTaskBadge = role !== "Platform admin";
-  const summaryQuery = useQuery({ queryKey: ["dashboard", "summary"], queryFn: getSummary, enabled: showTaskBadge });
+  const summaryQuery = useQuery({
+    queryKey: ["dashboard", "summary"],
+    queryFn: getSummary,
+    enabled: showTaskBadge,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
   const activeTaskCount = (summaryQuery.data?.openTasks ?? 0) + (summaryQuery.data?.inProgressTasks ?? 0);
 
   return (

@@ -24,8 +24,13 @@ export function Topbar() {
   const canUseExecutive = role === "Auditor" || role === "Company admin";
   const executiveActive = location.pathname === "/dashboard/executive" || new URLSearchParams(location.search).get("view") === "executive";
   // SignalR (src/lib/notificationHub.ts) pushes live updates and invalidates this query instantly;
-  // this poll is just a passive backstop in case a connection drops silently.
-  const unreadCountQuery = useQuery({ queryKey: ["notifications", "unread-count"], queryFn: getUnreadCount, refetchInterval: 300_000 });
+  // the poll and focus refetch below are just a passive backstop in case a connection drops silently.
+  const unreadCountQuery = useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: getUnreadCount,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
   const unreadCount = unreadCountQuery.data ?? 0;
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
