@@ -2415,6 +2415,55 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   justify-self: end;
 }
 
+.comment-pending-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.comment-pending-image {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.comment-pending-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.comment-pending-image button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 18, 28, .72);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.comment-pending-image button:hover {
+  background: var(--danger);
+}
+
+.comment-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .activity-list,
 .document-list,
 .timeline-list {
@@ -2484,6 +2533,13 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   min-width: 0;
 }
 
+.document-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
 .document-row strong {
   font-size: 13px;
 }
@@ -2512,20 +2568,14 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   cursor: not-allowed;
 }
 
-.document-row .icon-button {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+/* Only the delete button gets the red treatment - the download button added alongside it stays
+   the neutral .icon-button styling above (this used to be un-scoped to .icon-button generally,
+   which would also have painted a plain download button red). */
+.document-row .icon-button.danger {
   color: var(--danger);
-  cursor: pointer;
 }
 
-.document-row .icon-button:hover {
+.document-row .icon-button.danger:hover {
   background: var(--danger-bg);
 }
 
@@ -3962,8 +4012,12 @@ table.grid-table td:has(> .badge) .badge::before {
 .task-intro-meta > span:first-child { color: var(--accent-600); font-size: 12px; font-weight: 800; }
 .priority-pill { border-radius: 999px; padding: 4px 10px; background: var(--surface-subtle); color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .task-intro-card > p { max-width: 880px; margin: 0 0 15px; color: var(--text-muted); font-size: 13px; line-height: 1.65; }
+.task-intro-attachments { display: flex; flex-wrap: wrap; gap: 8px; }
 .task-document-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; background: var(--surface-subtle); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.task-document-chip:hover { background: var(--surface); border-color: var(--accent-600); }
+.task-document-chip:disabled { opacity: .6; cursor: not-allowed; }
 .task-document-chip i { color: var(--text-muted); font-size: 15px; }
+.task-document-chip i.ti-download { font-size: 13px; }
 .task-tabs { gap: 18px; }
 .task-tabs button { font-weight: 700; }
 .task-details-grid { grid-template-columns: minmax(0, 1.7fr) minmax(270px, .8fr); }

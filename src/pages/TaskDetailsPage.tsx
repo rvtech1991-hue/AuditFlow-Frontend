@@ -1,10 +1,11 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, CellPerson, Toast, type ToastState } from "../components/ui";
 import { useRole } from "../lib/RoleContext";
 import { ApiError } from "../lib/apiClient";
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from "../lib/config";
+import { extractPastedImages } from "../lib/clipboardImages";
 import { getUsersForRole } from "../services/users";
 import { parseApiDateTime, todayDateInputValue } from "../lib/dateTime";
 import {
@@ -12,9 +13,11 @@ import {
   assignTask,
   changeTaskStatus,
   deleteAttachment,
+  downloadAttachment,
   getTaskDetail,
   updateTask,
   uploadAttachment,
+  type TaskAttachment,
   type TaskDetail,
   type TaskPriority,
   type TaskStatus,
@@ -40,6 +43,16 @@ function formatDate(value: string) {
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(parseApiDateTime(value));
+}
+
+async function downloadTaskAttachment(attachment: TaskAttachment): Promise<void> {
+  const blob = await downloadAttachment(attachment.id);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = attachment.name;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function statusLabel(status: TaskStatus) {
@@ -217,28 +230,111 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
   const { user, role } = useRole();
   const queryClient = useQueryClient();
   const [body, setBody] = useState("");
+  const [pendingImages, setPendingImages] = useState<Array<{ file: File; previewUrl: string }>>([]);
+  const [uploadError, setUploadError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+
+  // Object URLs (one per staged paste preview) must be revoked or they leak - a ref keeps the
+  // unmount cleanup below reading the latest list instead of whatever was staged at mount time.
+  const pendingImagesRef = useRef(pendingImages);
+  pendingImagesRef.current = pendingImages;
+  useEffect(() => {
+    return () => pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+  }, []);
+
   const mutation = useMutation({
-    mutationFn: () => addComment(task.id, user.name, role, body.trim()),
+    mutationFn: async () => {
+      const comment = await addComment(task.id, user.name, role, body.trim());
+      // Sequential, not Promise.all - keeps the eventual attachment order on the comment matching
+      // the order they were pasted in, same reasoning as DocumentsTab's multi-file upload.
+      for (const { file } of pendingImages) {
+        await uploadAttachment(task.id, file, user.name, false, comment.id);
+      }
+    },
     onSuccess: () => {
       setBody("");
+      pendingImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      setPendingImages([]);
       queryClient.invalidateQueries({ queryKey: ["task", task.id] });
     },
   });
+  const downloadMutation = useMutation({
+    mutationFn: (attachment: TaskAttachment) => downloadTaskAttachment(attachment),
+    onMutate: () => setDownloadError(""),
+    onError: (err) => setDownloadError(err instanceof ApiError ? err.detail : "Couldn't download the file."),
+  });
+
+  const handlePaste = (event: ClipboardEvent) => {
+    const images = extractPastedImages(event);
+    if (!images.length) return;
+    const oversized = images.filter((file) => file.size > MAX_UPLOAD_SIZE_BYTES);
+    if (oversized.length) {
+      setUploadError(`${oversized.map((file) => file.name).join(", ")} exceed${oversized.length === 1 ? "s" : ""} the ${MAX_UPLOAD_SIZE_MB}MB upload limit.`);
+      return;
+    }
+    setUploadError("");
+    setPendingImages((current) => [...current, ...images.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))]);
+  };
+
+  const removePendingImage = (index: number) => {
+    setPendingImages((current) => {
+      const target = current[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((_, i) => i !== index);
+    });
+  };
 
   return (
     <Card>
       {canComment ? (
         <form className="comment-composer" onSubmit={(event: FormEvent) => { event.preventDefault(); if (body.trim()) mutation.mutate(); }}>
-          <textarea value={body} onChange={(event) => setBody(event.currentTarget.value)} placeholder="Add a comment..." />
+          <textarea
+            value={body}
+            onChange={(event) => setBody(event.currentTarget.value)}
+            onPaste={handlePaste}
+            placeholder="Add a comment... (paste a screenshot with Ctrl+V to attach it)"
+          />
+          {pendingImages.length ? (
+            <div className="comment-pending-images">
+              {pendingImages.map((image, index) => (
+                <div key={image.previewUrl} className="comment-pending-image">
+                  <img src={image.previewUrl} alt={image.file.name} />
+                  <button type="button" aria-label={`Remove ${image.file.name}`} onClick={() => removePendingImage(index)}>
+                    <i className="ti ti-x" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {uploadError ? <p className="form-error">{uploadError}</p> : null}
           <Button type="submit" variant="primary" disabled={!body.trim() || mutation.isPending}>{mutation.isPending ? "Posting..." : "Add comment"}</Button>
         </form>
       ) : null}
       {mutation.isError ? <p className="form-error">{mutation.error instanceof ApiError ? mutation.error.detail : "Couldn't post the comment."}</p> : null}
+      {downloadError ? <p className="form-error">{downloadError}</p> : null}
       <div className="activity-list">
         {task.comments.map((comment) => (
           <article key={comment.id} className="activity-item">
             <CellPerson initials={comment.author.split(" ").map((part) => part[0]).join("").slice(0, 2)} name={comment.author} meta={`${comment.role} - ${formatDateTime(comment.createdAt)}`} />
             <p>{comment.body}</p>
+            {comment.attachments.length ? (
+              <div className="comment-attachments">
+                {comment.attachments.map((attachment) => (
+                  <button
+                    key={attachment.id}
+                    type="button"
+                    className="task-document-chip"
+                    disabled={downloadMutation.isPending && downloadMutation.variables?.id === attachment.id}
+                    onClick={() => downloadMutation.mutate(attachment)}
+                    title={`Download ${attachment.name} (${attachment.sizeLabel})`}
+                  >
+                    <i className="ti ti-paperclip" />
+                    <span>{attachment.name}</span>
+                    <i className="ti ti-download" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </article>
         ))}
       </div>
@@ -246,10 +342,11 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
   );
 }
 
-function DocumentsTab({ task, canUpload }: { task: TaskDetail; canUpload: boolean }) {
+function DocumentsTab({ task, attachments, canUpload }: { task: TaskDetail; attachments: TaskAttachment[]; canUpload: boolean }) {
   const { user } = useRole();
   const queryClient = useQueryClient();
   const [uploadError, setUploadError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
   const uploadMutation = useMutation({
     mutationFn: (files: File[]) => Promise.all(files.map((file) => uploadAttachment(task.id, file, user.name))),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task", task.id] }),
@@ -258,6 +355,11 @@ function DocumentsTab({ task, canUpload }: { task: TaskDetail; canUpload: boolea
   const deleteMutation = useMutation({
     mutationFn: (attachmentId: string) => deleteAttachment(task.id, attachmentId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task", task.id] }),
+  });
+  const downloadMutation = useMutation({
+    mutationFn: (attachment: TaskAttachment) => downloadTaskAttachment(attachment),
+    onMutate: () => setDownloadError(""),
+    onError: (err) => setDownloadError(err instanceof ApiError ? err.detail : "Couldn't download the file."),
   });
 
   const uploadFiles = (event: ChangeEvent<HTMLInputElement>) => {
@@ -283,16 +385,29 @@ function DocumentsTab({ task, canUpload }: { task: TaskDetail; canUpload: boolea
         </label>
       ) : null}
       {uploadError ? <p className="form-error">{uploadError}</p> : null}
+      {downloadError ? <p className="form-error">{downloadError}</p> : null}
       <div className="document-list">
-        {task.attachments.map((document) => (
-          <div key={document.id} className="document-row">
-            <div className="document-row-info">
-              <strong>{document.name}</strong>
-              <span>{document.sizeLabel} - {document.uploadedBy} - {formatDateTime(document.uploadedAt)}</span>
+        {attachments.map((document) => {
+          const isDownloading = downloadMutation.isPending && downloadMutation.variables?.id === document.id;
+          return (
+            <div key={document.id} className="document-row">
+              <div className="document-row-info">
+                <strong>{document.name}</strong>
+                <span>{document.sizeLabel} - {document.uploadedBy} - {formatDateTime(document.uploadedAt)}</span>
+              </div>
+              <div className="document-row-actions">
+                <button className="icon-button" type="button" aria-label={`Download ${document.name}`} disabled={isDownloading} onClick={() => downloadMutation.mutate(document)}>
+                  <i className="ti ti-download" />
+                </button>
+                {canUpload ? (
+                  <button className="icon-button danger" type="button" aria-label={`Delete ${document.name}`} onClick={() => deleteMutation.mutate(document.id)}>
+                    <i className="ti ti-trash" />
+                  </button>
+                ) : null}
+              </div>
             </div>
-            {canUpload ? <button className="icon-button" type="button" aria-label={`Delete ${document.name}`} onClick={() => deleteMutation.mutate(document.id)}><i className="ti ti-trash" /></button> : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
@@ -395,6 +510,10 @@ export function TaskDetailsPage() {
     },
     onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't update the status." }),
   });
+  const attachmentDownloadMutation = useMutation({
+    mutationFn: (attachment: TaskAttachment) => downloadTaskAttachment(attachment),
+    onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't download the file." }),
+  });
 
   if (taskQuery.isLoading) {
     return <div className="task-details-page"><p className="data-state">Loading task…</p></div>;
@@ -405,6 +524,14 @@ export function TaskDetailsPage() {
   }
   if (!taskQuery.data) return <Navigate to="/tasks" replace />;
   const task = taskQuery.data;
+  // Split once here rather than in each consumer — attached-at-creation files show up top next
+  // to the description, everything added later via the Documents tab shows there instead, and
+  // anything pasted into a specific comment shows only inline under that comment (task.attachments
+  // still carries those too - the backend needs TaskId set on them for its access checks - so they
+  // must be excluded here or the same file would appear a second time in one of the lists below).
+  const taskLevelAttachments = task.attachments.filter((attachment) => !attachment.commentId);
+  const initialAttachments = taskLevelAttachments.filter((attachment) => attachment.isInitialUpload);
+  const laterAttachments = taskLevelAttachments.filter((attachment) => !attachment.isInitialUpload);
 
   const canManageClosure = role === "Auditor";
   const canComment = role === "Auditor" || role === "Employee";
@@ -455,6 +582,24 @@ export function TaskDetailsPage() {
       <Card className="task-intro-card">
         <div className="task-intro-meta"><span>{task.taskNumber}</span><span className="priority-pill">{task.priority} priority</span><Badge status={task.status} /></div>
         <p>{task.description}</p>
+        {initialAttachments.length ? (
+          <div className="task-intro-attachments">
+            {initialAttachments.map((attachment) => (
+              <button
+                key={attachment.id}
+                type="button"
+                className="task-document-chip"
+                disabled={attachmentDownloadMutation.isPending && attachmentDownloadMutation.variables?.id === attachment.id}
+                onClick={() => attachmentDownloadMutation.mutate(attachment)}
+                title={`Download ${attachment.name} (${attachment.sizeLabel})`}
+              >
+                <i className="ti ti-paperclip" />
+                <span>{attachment.name}</span>
+                <i className="ti ti-download" />
+              </button>
+            ))}
+          </div>
+        ) : null}
       </Card>
 
       <div className="task-tabs" role="tablist" aria-label="Task details tabs">
@@ -478,7 +623,7 @@ export function TaskDetailsPage() {
         />
       ) : null}
       {activeTab === "comments" ? <CommentsTab task={task} canComment={canComment} /> : null}
-      {activeTab === "documents" ? <DocumentsTab task={task} canUpload={canComment} /> : null}
+      {activeTab === "documents" ? <DocumentsTab task={task} attachments={laterAttachments} canUpload={canComment} /> : null}
       {activeTab === "timeline" ? <TimelineTab task={task} /> : null}
 
       {reopenModalOpen ? (

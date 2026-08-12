@@ -66,6 +66,7 @@ export type TaskComment = {
   role: string;
   body: string;
   createdAt: string;
+  attachments: TaskAttachment[];
 };
 
 export type TaskAttachment = {
@@ -74,6 +75,14 @@ export type TaskAttachment = {
   uploadedBy: string;
   uploadedAt: string;
   sizeLabel: string;
+  /** True when attached via the task-creation dropzone rather than the Documents tab afterward
+   * — Overview shows the former, the Documents tab shows the latter, never both. */
+  isInitialUpload: boolean;
+  /** Set when this attachment was pasted into a specific comment - the task-level `attachments`
+   * array still includes these (the backend needs TaskId set on them for its access checks), so
+   * every task-level list here must filter out anything with a commentId to avoid showing the
+   * same file both inline under the comment and again in the task-level list. */
+  commentId?: string;
 };
 
 export type TaskTimelineEntry = {
@@ -116,6 +125,7 @@ type RawComment = {
   authorEmail: string;
   authorRole: string;
   createdAt: string;
+  attachments?: RawAttachment[];
 };
 
 type RawAttachment = {
@@ -124,6 +134,8 @@ type RawAttachment = {
   fileSize: number;
   uploadedByUserName: string;
   createdAt: string;
+  isInitialUpload: boolean;
+  commentId?: string | null;
 };
 
 type RawTimelineItem = {
@@ -156,11 +168,27 @@ type RawTaskDetail = {
 };
 
 function mapComment(raw: RawComment): TaskComment {
-  return { id: raw.id, author: raw.authorName, authorEmail: raw.authorEmail, role: raw.authorRole, body: raw.content, createdAt: raw.createdAt };
+  return {
+    id: raw.id,
+    author: raw.authorName,
+    authorEmail: raw.authorEmail,
+    role: raw.authorRole,
+    body: raw.content,
+    createdAt: raw.createdAt,
+    attachments: (raw.attachments ?? []).map(mapAttachment),
+  };
 }
 
 function mapAttachment(raw: RawAttachment): TaskAttachment {
-  return { id: raw.id, name: raw.fileName, uploadedBy: raw.uploadedByUserName, uploadedAt: raw.createdAt, sizeLabel: formatFileSize(raw.fileSize) };
+  return {
+    id: raw.id,
+    name: raw.fileName,
+    uploadedBy: raw.uploadedByUserName,
+    uploadedAt: raw.createdAt,
+    sizeLabel: formatFileSize(raw.fileSize),
+    isInitialUpload: raw.isInitialUpload,
+    commentId: raw.commentId ?? undefined,
+  };
 }
 
 function mapTimelineItem(raw: RawTimelineItem): TaskTimelineEntry {
@@ -244,8 +272,16 @@ function taskEntryFromMock(task: AuditTask): TaskEntry {
 function taskDetailFromMock(task: AuditTask): TaskDetail {
   return {
     ...taskEntryFromMock(task),
-    comments: taskComments.filter((c) => c.taskId === task.id).map((c) => ({ id: c.id, author: c.author, authorEmail: "", role: c.role, body: c.body, createdAt: c.createdAt })),
-    attachments: taskDocuments.filter((d) => d.taskId === task.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedAt: d.uploadedAt, sizeLabel: d.size })),
+    comments: taskComments.filter((c) => c.taskId === task.id).map((c) => ({
+      id: c.id,
+      author: c.author,
+      authorEmail: "",
+      role: c.role,
+      body: c.body,
+      createdAt: c.createdAt,
+      attachments: taskDocuments.filter((d) => d.commentId === c.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload })),
+    })),
+    attachments: taskDocuments.filter((d) => d.taskId === task.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload, commentId: d.commentId })),
     // Merges the mock's separate "status history" and "audit timeline" concepts into one — the
     // backend only exposes a single status-transition timeline (SS8 "Immutable audit trail"),
     // no broader activity feed (comment-added/attachment-uploaded events aren't queryable).
@@ -473,12 +509,15 @@ export async function changeTaskStatus(taskId: string, status: Exclude<TaskStatu
 // Comments
 // ---------------------------------------------------------------------------
 
-export async function addComment(taskId: string, author: string, role: Role, body: string): Promise<void> {
+/** Returns the new comment's id so a pasted-image attachment (if any) can be uploaded against it
+ * right after — see uploadAttachment's commentId param. */
+export async function addComment(taskId: string, author: string, role: Role, body: string): Promise<{ id: string }> {
   if (API_MODE === "mock") {
-    mockAddTaskComment(taskId, author, role, body);
-    return;
+    const comment = mockAddTaskComment(taskId, author, role, body);
+    return { id: comment.id };
   }
-  await apiClient.post<void>(`/tasks/${taskId}/comments`, { content: body });
+  const raw = await apiClient.post<RawComment>(`/tasks/${taskId}/comments`, { content: body });
+  return { id: raw.id };
 }
 
 // ---------------------------------------------------------------------------
@@ -493,20 +532,37 @@ export async function addComment(taskId: string, author: string, role: Role, bod
 
 type RawFileUpload = { fileId: string; fileName: string; storagePath: string; storageProvider: number; fileSize: number; contentType: string };
 
-export async function uploadAttachment(taskId: string, file: File, uploadedBy: string): Promise<void> {
+/** commentId links this upload to a specific comment (e.g. an image pasted into the comment
+ * composer) rather than the task generally — the comment must already exist server-side, so
+ * callers create the comment first and pass its returned id here. */
+export async function uploadAttachment(taskId: string, file: File, uploadedBy: string, isInitialUpload = false, commentId?: string): Promise<void> {
   if (API_MODE === "mock") {
-    mockAddTaskDocument(taskId, uploadedBy, file.name);
+    mockAddTaskDocument(taskId, uploadedBy, file.name, isInitialUpload, commentId);
     return;
   }
   const uploadForm = new FormData();
   uploadForm.append("file", file);
   uploadForm.append("taskId", taskId);
+  uploadForm.append("isInitialUpload", String(isInitialUpload));
+  if (commentId) uploadForm.append("commentId", commentId);
   await apiClient.postForm<RawFileUpload>("/files/upload", uploadForm);
 }
 
 export async function deleteAttachment(taskId: string, attachmentId: string): Promise<void> {
   if (API_MODE === "mock") return; // mock documents aren't individually deletable in the current UI
   await apiClient.delete<void>(`/tasks/${taskId}/attachments/${attachmentId}`);
+}
+
+// GET /files/{fileId} returns the raw file bytes (not the JSON success envelope) - apiClient
+// already special-cases a non-JSON content-type response by resolving a Blob (see request() in
+// apiClient.ts), so this just needs to ask for it and hand the caller something it can turn into
+// a browser download via URL.createObjectURL (same pattern as downloadTaskTemplate below).
+export async function downloadAttachment(attachmentId: string): Promise<Blob> {
+  if (API_MODE === "mock") {
+    // Mock documents are metadata-only (see uploadAttachment) - there's no real file behind them.
+    throw new ApiError({ status: 501, errorCode: "NOT_SUPPORTED", detail: "Downloads aren't available in mock data mode." });
+  }
+  return apiClient.get<Blob>(`/files/${attachmentId}`);
 }
 
 // ---------------------------------------------------------------------------

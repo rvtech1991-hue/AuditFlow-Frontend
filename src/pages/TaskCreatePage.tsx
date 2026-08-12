@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useRole } from "../lib/RoleContext";
@@ -8,6 +8,7 @@ import { getUsersForRole } from "../services/users";
 import { createTask, uploadAttachment, type TaskPriority } from "../services/tasks";
 import { todayDateInputValue } from "../lib/dateTime";
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from "../lib/config";
+import { extractPastedImages } from "../lib/clipboardImages";
 
 const priorities: TaskPriority[] = ["Critical", "High", "Medium", "Low"];
 
@@ -61,6 +62,21 @@ export function TaskCreatePage() {
 
   const canSubmit = Boolean(title.trim() && description.trim() && dueDate && dueDate >= today && companyId && assigneeId) && !isSubmitting;
 
+  // Shared by the file picker and paste-to-attach (Ctrl+V a screenshot) below — appends rather
+  // than replacing, so pasting a screenshot doesn't wipe out files already picked.
+  const addAttachmentFiles = (files: File[]) => {
+    if (!files.length) return;
+    const oversized = files.filter((file) => file.size > MAX_UPLOAD_SIZE_BYTES);
+    if (oversized.length) {
+      setError(`${oversized.map((file) => file.name).join(", ")} exceed${oversized.length === 1 ? "s" : ""} the ${MAX_UPLOAD_SIZE_MB}MB upload limit.`);
+      return;
+    }
+    setError("");
+    setAttachmentFiles((current) => [...current, ...files]);
+  };
+
+  const handlePaste = (event: ClipboardEvent) => addAttachmentFiles(extractPastedImages(event));
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -94,7 +110,7 @@ export function TaskCreatePage() {
       // matching TaskDetailsPage's upload flow — CreateTaskCommand accepts pre-uploaded
       // metadata, not raw files, so there's no way to attach them in the same call.
       for (const file of attachmentFiles) {
-        await uploadAttachment(task.id, file, user.name);
+        await uploadAttachment(task.id, file, user.name, true);
       }
       setSubmittedTaskNumber(task.taskNumber);
       // Reset for the next entry — keep company/sub-company/assignee/priority as convenience
@@ -123,7 +139,7 @@ export function TaskCreatePage() {
           </button>
         </div>
 
-        <form className="task-create-form" onSubmit={handleSubmit}>
+        <form className="task-create-form" onSubmit={handleSubmit} onPaste={handlePaste}>
           <div className="field">
             <label>Title</label>
             <input value={title} onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.currentTarget.value)} placeholder="e.g., Inventory count mismatch - Warehouse 3" required />
@@ -183,19 +199,12 @@ export function TaskCreatePage() {
               type="file"
               multiple
               onChange={(event) => {
-                const files = Array.from(event.currentTarget.files ?? []);
-                const oversized = files.filter((file) => file.size > MAX_UPLOAD_SIZE_BYTES);
-                if (oversized.length) {
-                  setError(`${oversized.map((file) => file.name).join(", ")} exceed${oversized.length === 1 ? "s" : ""} the ${MAX_UPLOAD_SIZE_MB}MB upload limit.`);
-                  event.currentTarget.value = "";
-                  return;
-                }
-                setError("");
-                setAttachmentFiles(files);
+                addAttachmentFiles(Array.from(event.currentTarget.files ?? []));
+                event.currentTarget.value = "";
               }}
             />
             <i className="ti ti-cloud-upload" aria-hidden="true" />
-            <p>{attachmentFiles.length ? attachmentFiles.map((file) => file.name).join(", ") : `Drag files here or click to upload (up to ${MAX_UPLOAD_SIZE_MB}MB each)`}</p>
+            <p>{attachmentFiles.length ? attachmentFiles.map((file) => file.name).join(", ") : `Drag files here, click to upload, or paste (Ctrl+V) a screenshot — up to ${MAX_UPLOAD_SIZE_MB}MB each`}</p>
           </label>
 
           <div className="modal-footer-actions">

@@ -65,6 +65,10 @@ export type TaskDocument = {
   uploadedBy: string;
   uploadedAt: string;
   size: string;
+  isInitialUpload: boolean;
+  /** Set when this file was pasted/attached to a specific comment rather than the task overall
+   * (mirrors the backend's Attachment.CommentId). */
+  commentId?: string;
 };
 
 export type StatusHistoryEntry = {
@@ -286,9 +290,9 @@ export const taskComments: TaskComment[] = [
 ];
 
 export const taskDocuments: TaskDocument[] = [
-  { id: "DOC-1", taskId: "AF-1024", name: "bank_confirmation_june.pdf", uploadedBy: "Rakesh Kumar", uploadedAt: "2026-07-06T10:18:00", size: "248 KB" },
-  { id: "DOC-2", taskId: "AF-1024", name: "cashbook_reconciliation.xlsx", uploadedBy: "Nisha Rao", uploadedAt: "2026-07-07T16:05:00", size: "412 KB" },
-  { id: "DOC-3", taskId: "AF-1030", name: "dispatch_register_june.xlsx", uploadedBy: "A. Verma", uploadedAt: "2026-07-08T11:20:00", size: "331 KB" },
+  { id: "DOC-1", taskId: "AF-1024", name: "bank_confirmation_june.pdf", uploadedBy: "Rakesh Kumar", uploadedAt: "2026-07-06T10:18:00", size: "248 KB", isInitialUpload: false },
+  { id: "DOC-2", taskId: "AF-1024", name: "cashbook_reconciliation.xlsx", uploadedBy: "Nisha Rao", uploadedAt: "2026-07-07T16:05:00", size: "412 KB", isInitialUpload: false },
+  { id: "DOC-3", taskId: "AF-1030", name: "dispatch_register_june.xlsx", uploadedBy: "A. Verma", uploadedAt: "2026-07-08T11:20:00", size: "331 KB", isInitialUpload: false },
 ];
 
 export const taskStatusHistory: StatusHistoryEntry[] = [
@@ -448,7 +452,7 @@ export function addTaskComment(taskId: string, author: string, role: Role, body:
   return comment;
 }
 
-export function addTaskDocument(taskId: string, uploadedBy: string, name: string) {
+export function addTaskDocument(taskId: string, uploadedBy: string, name: string, isInitialUpload = false, commentId?: string) {
   const document: TaskDocument = {
     id: `DOC-${taskDocuments.length + 1}`,
     taskId,
@@ -456,6 +460,8 @@ export function addTaskDocument(taskId: string, uploadedBy: string, name: string
     uploadedBy,
     uploadedAt: nowStamp(),
     size: "Mock file",
+    isInitialUpload,
+    commentId,
   };
   taskDocuments.unshift(document);
   appendTimeline(taskId, uploadedBy, "Document uploaded", `Added ${name}.`);
@@ -491,7 +497,7 @@ export function createMockTask(input: NewTaskInput) {
     createdAt: "2026-07-09T10:30:00",
   });
   appendTimeline(task.id, input.createdBy, "Task created", `Created ${task.priority.toLowerCase()}-priority task and assigned it to ${task.assignee}.`);
-  task.attachmentNames?.forEach((name) => addTaskDocument(task.id, input.createdBy, name));
+  task.attachmentNames?.forEach((name) => addTaskDocument(task.id, input.createdBy, name, true));
   mockNotifications.unshift({
     id: `NTF-${mockNotifications.length + 1}`,
     taskId: task.id,
