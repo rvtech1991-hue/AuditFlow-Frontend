@@ -24,6 +24,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../mock-data/tasks";
+import { statusLabels } from "../lib/status";
 import type { Role } from "../types";
 
 export type { TaskPriority, TaskStatus };
@@ -591,6 +592,183 @@ export async function downloadAttachment(attachmentId: string): Promise<Blob> {
     throw new ApiError({ status: 501, errorCode: "NOT_SUPPORTED", detail: "Downloads aren't available in mock data mode." });
   }
   return apiClient.get<Blob>(`/files/${attachmentId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log — the full merged trail (creation, reassignment, field edits, status
+// changes, comments, attachments) for one task, plus its PDF export. Separate
+// from the `timeline` field on TaskDetail above (status changes only, unchanged).
+// ---------------------------------------------------------------------------
+
+export type TaskAuditLogEntry = {
+  eventType: string;
+  occurredAt: string;
+  actorName: string;
+  summary: string;
+  detail?: string;
+};
+
+export type TaskAuditLogComment = { authorName: string; createdAt: string; content: string };
+
+export type TaskAuditLogAttachment = {
+  fileName: string;
+  sizeLabel: string;
+  uploadedByName: string;
+  createdAt: string;
+  isInitialUpload: boolean;
+};
+
+export type TaskAuditLog = {
+  taskId: string;
+  taskNumber: string;
+  title: string;
+  companyName: string;
+  subCompanyName: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  createdByName: string;
+  assignedToName: string;
+  createdAt: string;
+  dueDate: string;
+  entries: TaskAuditLogEntry[];
+  comments: TaskAuditLogComment[];
+  attachments: TaskAuditLogAttachment[];
+};
+
+type RawTaskAuditLogEntry = { eventType: string; occurredAt: string; actorName: string; summary: string; detail: string | null };
+type RawTaskAuditLogComment = { authorName: string; createdAt: string; content: string };
+type RawTaskAuditLogAttachment = { fileName: string; fileSize: number; uploadedByName: string; createdAt: string; isInitialUpload: boolean };
+
+type RawTaskAuditLog = {
+  taskId: string;
+  taskNumber: string;
+  title: string;
+  companyName: string;
+  subCompanyName: string | null;
+  status: number;
+  priority: number;
+  createdByName: string;
+  assignedToName: string;
+  createdAt: string;
+  dueDate: string | null;
+  entries: RawTaskAuditLogEntry[];
+  comments: RawTaskAuditLogComment[];
+  attachments: RawTaskAuditLogAttachment[];
+};
+
+function mapTaskAuditLog(raw: RawTaskAuditLog): TaskAuditLog {
+  return {
+    taskId: raw.taskId,
+    taskNumber: raw.taskNumber,
+    title: raw.title,
+    companyName: raw.companyName,
+    subCompanyName: raw.subCompanyName ?? "",
+    status: mapTaskStatusEnum(raw.status) as TaskStatus,
+    priority: mapTaskPriorityEnum(raw.priority),
+    createdByName: raw.createdByName,
+    assignedToName: raw.assignedToName,
+    createdAt: raw.createdAt,
+    dueDate: raw.dueDate ?? "",
+    entries: (raw.entries ?? []).map((e) => ({
+      eventType: e.eventType,
+      occurredAt: e.occurredAt,
+      actorName: e.actorName,
+      summary: e.summary,
+      detail: e.detail ?? undefined,
+    })),
+    comments: (raw.comments ?? []).map((c) => ({ authorName: c.authorName, createdAt: c.createdAt, content: c.content })),
+    attachments: (raw.attachments ?? []).map((a) => ({
+      fileName: a.fileName,
+      sizeLabel: formatFileSize(a.fileSize),
+      uploadedByName: a.uploadedByName,
+      createdAt: a.createdAt,
+      isInitialUpload: a.isInitialUpload,
+    })),
+  };
+}
+
+// Mock data has no Created/Assigned/Updated audit trail (only status history, comments and
+// documents) — the merged feed here reflects that honestly rather than inventing entries for
+// events mock mode never actually tracked.
+function taskAuditLogFromMock(task: AuditTask): TaskAuditLog {
+  const statusEntries: TaskAuditLogEntry[] = taskStatusHistory
+    .filter((h) => h.taskId === task.id)
+    .map((h) => ({
+      eventType: "StatusChanged",
+      occurredAt: h.createdAt,
+      actorName: h.actor,
+      summary: `Status changed — ${statusLabels[h.from ?? "open"]} → ${statusLabels[h.to]}`,
+      detail: h.comment,
+    }));
+  const commentEntries: TaskAuditLogEntry[] = taskComments
+    .filter((c) => c.taskId === task.id)
+    .map((c) => ({ eventType: "Comment", occurredAt: c.createdAt, actorName: c.author, summary: `${c.author} commented`, detail: c.body }));
+  const attachmentEntries: TaskAuditLogEntry[] = taskDocuments
+    .filter((d) => d.taskId === task.id)
+    .map((d) => ({
+      eventType: "Attachment",
+      occurredAt: d.uploadedAt,
+      actorName: d.uploadedBy,
+      summary: `Attachment uploaded — ${d.name}`,
+      detail: d.size + (d.isInitialUpload ? " · initial upload" : ""),
+    }));
+  const createdEntry: TaskAuditLogEntry = {
+    eventType: "Created",
+    occurredAt: task.createdOn,
+    actorName: task.createdBy,
+    summary: "Task created",
+    detail: `Assigned to ${task.assignee}. Priority: ${task.priority}. Due ${task.dueDate || "not set"}.`,
+  };
+
+  const entries = [createdEntry, ...statusEntries, ...commentEntries, ...attachmentEntries].sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
+
+  return {
+    taskId: task.id,
+    taskNumber: task.id,
+    title: task.title,
+    companyName: task.company,
+    subCompanyName: task.subCompany,
+    status: task.status,
+    priority: task.priority,
+    createdByName: task.createdBy,
+    assignedToName: task.assignee,
+    createdAt: task.createdOn,
+    dueDate: task.dueDate,
+    entries,
+    comments: taskComments.filter((c) => c.taskId === task.id).map((c) => ({ authorName: c.author, createdAt: c.createdAt, content: c.body })),
+    attachments: taskDocuments
+      .filter((d) => d.taskId === task.id)
+      .map((d) => ({ fileName: d.name, sizeLabel: d.size, uploadedByName: d.uploadedBy, createdAt: d.uploadedAt, isInitialUpload: d.isInitialUpload })),
+  };
+}
+
+export async function getTaskAuditLog(taskId: string): Promise<TaskAuditLog | null> {
+  if (API_MODE === "mock") {
+    const task = mockGetTaskById(taskId);
+    return task ? taskAuditLogFromMock(task) : null;
+  }
+  try {
+    const data = await apiClient.get<RawTaskAuditLog>(`/tasks/${taskId}/audit-log`);
+    return mapTaskAuditLog(data);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+export type TaskAuditLogExportResult = { fileName: string; contentType: string; blob: Blob };
+
+export async function exportTaskAuditLogPdf(taskId: string, taskNumber: string): Promise<TaskAuditLogExportResult> {
+  if (API_MODE === "mock") {
+    const content = `AuditFlow Task Audit Log Report — ${taskNumber}\nGenerated ${new Date().toLocaleString()}`;
+    const blob = new Blob([content], { type: "application/pdf" });
+    return { fileName: `task-audit-log-${taskNumber}.pdf`, contentType: blob.type, blob };
+  }
+  const data = await apiClient.get<{ content: string; fileName: string; contentType: string }>(`/tasks/${taskId}/audit-log/export/pdf`);
+  const bytes = Uint8Array.from(atob(data.content), (char) => char.charCodeAt(0));
+  return { fileName: data.fileName, contentType: data.contentType, blob: new Blob([bytes], { type: data.contentType }) };
 }
 
 // ---------------------------------------------------------------------------

@@ -15,25 +15,38 @@ import {
   deleteAttachment,
   deleteComment,
   downloadAttachment,
+  exportTaskAuditLogPdf,
+  getTaskAuditLog,
   getTaskDetail,
   updateComment,
   updateTask,
   uploadAttachment,
   type TaskAttachment,
+  type TaskAuditLogEntry,
   type TaskDetail,
   type TaskPriority,
   type TaskStatus,
 } from "../services/tasks";
 import type { Role, User } from "../types";
 
-type TabKey = "overview" | "comments" | "documents" | "timeline";
+type TabKey = "overview" | "comments" | "documents" | "timeline" | "auditLog";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "overview", label: "Overview" },
   { key: "comments", label: "Comments" },
   { key: "documents", label: "Documents" },
   { key: "timeline", label: "Timeline" },
+  { key: "auditLog", label: "Audit Log" },
 ];
+
+const AUDIT_ICON_BY_EVENT: Record<string, { iconClass: string; glyph: string }> = {
+  Created: { iconClass: "i-create", glyph: "ti-plus" },
+  Assigned: { iconClass: "i-assign", glyph: "ti-arrows-exchange" },
+  Updated: { iconClass: "i-update", glyph: "ti-pencil" },
+  StatusChanged: { iconClass: "i-status", glyph: "ti-check" },
+  Comment: { iconClass: "i-comment", glyph: "ti-message" },
+  Attachment: { iconClass: "i-attach", glyph: "ti-paperclip" },
+};
 
 const priorityOptions: TaskPriority[] = ["Critical", "High", "Medium", "Low"];
 const statusTrail: Array<Exclude<TaskStatus, "overdue">> = ["open", "progress", "resolved", "closed"];
@@ -546,6 +559,79 @@ function TimelineTab({ task }: { task: TaskDetail }) {
   );
 }
 
+function AuditLogEntryRow({ entry }: { entry: TaskAuditLogEntry }) {
+  const icon = AUDIT_ICON_BY_EVENT[entry.eventType] ?? { iconClass: "i-comment", glyph: "ti-info-circle" };
+  return (
+    <div className="audit-row">
+      <div className={`audit-icon ${icon.iconClass}`}>
+        <i className={`ti ${icon.glyph}`} />
+      </div>
+      <div className="audit-main">
+        <strong>{entry.summary}</strong>
+        {entry.detail ? (entry.eventType === "Comment" ? <span className="quote">&ldquo;{entry.detail}&rdquo;</span> : <span>{entry.detail}</span>) : null}
+      </div>
+      <div className="audit-meta">{formatDateTime(entry.occurredAt)}</div>
+    </div>
+  );
+}
+
+/** The full merged audit trail (creation, reassignment, field edits, status changes, comments,
+ * attachments) for management review — separate from TimelineTab (status changes only, untouched
+ * by this feature) and fetched lazily via its own query rather than folded into TaskDetail. */
+function AuditLogTab({ taskId, taskNumber }: { taskId: string; taskNumber: string }) {
+  const auditLogQuery = useQuery({ queryKey: ["task-audit-log", taskId], queryFn: () => getTaskAuditLog(taskId) });
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+
+  const runExport = async () => {
+    setExporting(true);
+    setExportError("");
+    try {
+      const result = await exportTaskAuditLogPdf(taskId, taskNumber);
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError("Couldn't generate the report — try again");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="audit-tab-head">
+        <div>
+          <h3>Complete audit trail</h3>
+          <p>Every event on this task — creation, reassignment, status changes, comments and attachments — merged into one chronological record.</p>
+        </div>
+        <button type="button" className="export-btn export-btn-pdf" onClick={runExport} disabled={exporting || auditLogQuery.isLoading}>
+          <span className="export-btn-icon">{exporting ? <span className="btn-spinner" /> : <i className="ti ti-file-type-pdf" />}</span>
+          {exporting ? "Generating…" : "Generate PDF"}
+        </button>
+      </div>
+      {exportError ? <p className="form-error">{exportError}</p> : null}
+
+      {auditLogQuery.isLoading ? (
+        <p className="data-state">Loading audit trail…</p>
+      ) : auditLogQuery.isError || !auditLogQuery.data ? (
+        <p className="data-state is-error">Couldn't load the audit log.</p>
+      ) : auditLogQuery.data.entries.length === 0 ? (
+        <p className="data-state">No activity recorded yet.</p>
+      ) : (
+        <div className="audit-feed">
+          {auditLogQuery.data.entries.map((entry, index) => (
+            <AuditLogEntryRow key={`${entry.eventType}-${entry.occurredAt}-${index}`} entry={entry} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function TaskDetailsPage() {
   const { taskId = "" } = useParams();
   const navigate = useNavigate();
@@ -707,6 +793,7 @@ export function TaskDetailsPage() {
       {activeTab === "comments" ? <CommentsTab task={task} canComment={canComment} /> : null}
       {activeTab === "documents" ? <DocumentsTab task={task} attachments={laterAttachments} canUpload={canComment} /> : null}
       {activeTab === "timeline" ? <TimelineTab task={task} /> : null}
+      {activeTab === "auditLog" ? <AuditLogTab taskId={task.id} taskNumber={task.taskNumber} /> : null}
 
       {reopenModalOpen ? (
         <div className="modal-backdrop" role="presentation">
