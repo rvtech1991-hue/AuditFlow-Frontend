@@ -40,7 +40,7 @@ export function Sidebar() {
             <div className="nav-eyebrow">{group}</div>
             {items.map((item) => (
               <NavLink key={item.path} to={item.path} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-                <i className={`ti ${({ Dashboard: "ti-layout-dashboard", Tasks: "ti-checkbox", Reports: "ti-chart-bar", Companies: "ti-building", Users: "ti-users", "Auditor accounts": "ti-building-bank", Notifications: "ti-bell" } as Record<string, string>)[item.label]}`} aria-hidden="true" />
+                <i className={`ti ${({ Dashboard: "ti-layout-dashboard", Tasks: "ti-checkbox", "My Checklist": "ti-list-check", Reports: "ti-chart-bar", Companies: "ti-building", Users: "ti-users", "Auditor accounts": "ti-building-bank", Notifications: "ti-bell" } as Record<string, string>)[item.label]}`} aria-hidden="true" />
                 <span>{item.label}</span>
                 {item.label === "Tasks" && activeTaskCount > 0 ? <span className="nav-badge">{activeTaskCount}</span> : null}
               </NavLink>

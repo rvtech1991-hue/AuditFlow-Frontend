@@ -354,3 +354,35 @@ export async function getExecutiveReviewerPerformance(role: Role, filters: Execu
   const data = await apiClient.get<Array<{ userId: string; userName: string; closedCount: number; avgTurnaroundDays: number }>>("/dashboard/executive/reviewer-performance", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined, dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined });
   return data.map((r) => ({ id: r.userId, name: r.userName, closedCount: r.closedCount, avgTurnaroundDays: r.avgTurnaroundDays }));
 }
+
+// ---------------------------------------------------------------------------
+// Export — same JSON-wrapped-base64 FileDownloadResponse pattern as Reports/
+// Checklist (services/reports.ts, services/checklist.ts). A PDF snapshot of
+// exactly the current filtered view, so it can never disagree with what's on
+// screen when the button is clicked.
+// ---------------------------------------------------------------------------
+
+export type DashboardExportResult = { fileName: string; contentType: string; blob: Blob };
+
+function mockDashboardExportBlob(): DashboardExportResult {
+  const content = `AuditFlow Executive Dashboard Report\nGenerated ${new Date().toLocaleString()}`;
+  const blob = new Blob([content], { type: "application/pdf" });
+  return { fileName: "executive-dashboard.pdf", contentType: blob.type, blob };
+}
+
+export async function exportExecutiveDashboardPdf(filters: ExecutiveFilters): Promise<DashboardExportResult> {
+  if (API_MODE === "mock") {
+    return mockDashboardExportBlob();
+  }
+  const data = await apiClient.get<{ content: string; fileName: string; contentType: string }>("/dashboard/executive/export/pdf", {
+    companyId: filters.companyId,
+    companyName: filters.companyName,
+    subCompanyId: filters.subCompanyId,
+    dateRange: filters.dateRange,
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    status: filters.status,
+  });
+  const bytes = Uint8Array.from(atob(data.content), (char) => char.charCodeAt(0));
+  return { fileName: data.fileName, contentType: data.contentType, blob: new Blob([bytes], { type: data.contentType }) };
+}

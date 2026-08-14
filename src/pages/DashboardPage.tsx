@@ -6,6 +6,7 @@ import type { DashboardTask } from "../mock-data/dashboard";
 import { useRole } from "../lib/RoleContext";
 import { todayDateInputValue } from "../lib/dateTime";
 import {
+  exportExecutiveDashboardPdf,
   getAnnouncements,
   getDashboardCompanyScope,
   getExecutiveAging,
@@ -23,6 +24,15 @@ import {
   type TrendPoint,
 } from "../services/dashboard";
 import { ApiError } from "../lib/apiClient";
+
+function triggerDashboardDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
@@ -238,6 +248,8 @@ function ExecutiveDashboard() {
 
   const [pending, setPending] = useState<ExecutiveFilterState>(defaultFilterState);
   const [applied, setApplied] = useState<ExecutiveFilterState>(defaultFilterState);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Lock CompanyAdmin to their one company as soon as the list loads.
   useEffect(() => {
@@ -319,8 +331,29 @@ function ExecutiveDashboard() {
   const reviewerPerformance = reviewerPerformanceQuery.data ?? [];
   const maxReviewerClosed = Math.max(1, ...reviewerPerformance.map((r) => r.closedCount));
 
+  const downloadPdf = async () => {
+    setExportError(null);
+    setExporting(true);
+    try {
+      const result = await exportExecutiveDashboardPdf(filters);
+      triggerDashboardDownload(result.blob, result.fileName);
+    } catch {
+      setExportError("Couldn't generate the report — try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="dashboard-page">
+      <div className="dashboard-export-row">
+        <span>Share this view with management — print it or download a PDF snapshot.</span>
+        <span className="dashboard-export-buttons">
+          <Button size="small" onClick={() => window.print()}><i className="ti ti-printer" /> Print</Button>
+          <Button size="small" variant="primary" disabled={exporting} onClick={downloadPdf}><i className="ti ti-download" /> {exporting ? "Generating…" : "Download PDF"}</Button>
+        </span>
+      </div>
+      {exportError ? <p className="dashboard-export-error">{exportError}</p> : null}
       <Card className="filter-card">
         <div className="filter-grid">
           <label>

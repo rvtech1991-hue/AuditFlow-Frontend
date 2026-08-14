@@ -9,6 +9,7 @@ import { RoleProvider, useRole } from "./lib/RoleContext";
 import { routes } from "./lib/routes";
 import type { RouteMeta } from "./types";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { ChecklistPage } from "./pages/ChecklistPage";
 import { CompanyFormPage } from "./pages/CompanyFormPage";
 import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -81,6 +82,8 @@ function ProtectedRoute({ route }: { route: RouteMeta }) {
         <TaskGridPage mode="all" />
       ) : route.path === "/tasks/:taskId" ? (
         <TaskDetailsPage />
+      ) : route.path === "/checklist" ? (
+        <ChecklistPage />
       ) : route.path === "/companies" ? (
         <CompanyManagementPage />
       ) : route.path === "/users" ? (

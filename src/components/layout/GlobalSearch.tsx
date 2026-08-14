@@ -39,7 +39,12 @@ export function GlobalSearch() {
         onBlur={() => window.setTimeout(() => setFocused(false), 120)}
       />
       {open ? (
-        <div className="search-results">
+        // Clicking a result is a mousedown-then-click on a *different* element than the input,
+        // which natively shifts focus off the input before the click fires - that would trigger
+        // onBlur and could unmount this dropdown (and the button being clicked) before the click
+        // ever lands. preventDefault on mousedown stops that focus shift entirely, so the input
+        // never blurs mid-click and the result's onClick always gets to fire.
+        <div className="search-results" onMouseDown={(event) => event.preventDefault()}>
           {results.length ? (
             <>
               <div className="search-results-count">{results.length} result{results.length === 1 ? "" : "s"}</div>

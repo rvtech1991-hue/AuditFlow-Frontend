@@ -12,6 +12,7 @@ export const routes: RouteMeta[] = [
   { path: "/tasks/new", title: "Create new task", subtitle: "Auditor-only task creation modal route.", access: ["Auditor"] },
   { path: "/tasks/bulk-upload", title: "Bulk create tasks", subtitle: "Excel import workflow placeholder.", access: ["Auditor"] },
   { path: "/tasks/:taskId", title: "Task details", subtitle: "Overview, comments, documents, status history, and audit timeline.", access: ["Auditor", "Company admin", "Employee"] },
+  { path: "/checklist", title: "My Checklist", subtitle: "Personal daily/weekly/monthly to-dos, plus assigned tasks with a due date.", access: ["Auditor", "Company admin", "Employee"] },
   { path: "/reports", title: "Reports", subtitle: "Filter, review, and export scoped task data.", access: ["Auditor", "Company admin", "Employee"] },
   { path: "/companies", title: "Company management", subtitle: "Company and sub-company list.", access: ["Auditor", "Company admin"] },
   { path: "/companies/new", title: "Add company", subtitle: "Company and nested sub-company creation route.", access: ["Auditor"] },
@@ -30,6 +31,7 @@ export const routes: RouteMeta[] = [
 export const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", roles: ["Auditor", "Company admin", "Employee"], group: "Workspace", icon: "▦" },
   { label: "Tasks", path: "/tasks", roles: ["Auditor", "Company admin", "Employee"], group: "Workspace", icon: "☑" },
+  { label: "My Checklist", path: "/checklist", roles: ["Auditor", "Company admin", "Employee"], group: "Workspace", icon: "◉" },
   { label: "Reports", path: "/reports", roles: ["Auditor", "Company admin", "Employee"], group: "Workspace", icon: "◷" },
   { label: "Companies", path: "/companies", roles: ["Auditor", "Company admin"], group: "Manage", icon: "▣" },
   { label: "Users", path: "/users", roles: ["Auditor", "Company admin"], group: "Manage", icon: "◉" },
