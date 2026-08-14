@@ -9,6 +9,7 @@ import {
   addTaskDocument as mockAddTaskDocument,
   auditTasks,
   createMockTask,
+  deleteTaskComment as mockDeleteTaskComment,
   getRoleScopedTasks,
   getTaskById as mockGetTaskById,
   getTaskFilterOptions as mockGetTaskFilterOptions,
@@ -17,6 +18,7 @@ import {
   taskComments,
   taskDocuments,
   taskStatusHistory,
+  updateTaskComment as mockUpdateTaskComment,
   updateTaskStatus as mockUpdateTaskStatus,
   type AuditTask,
   type TaskPriority,
@@ -63,6 +65,9 @@ export type TaskComment = {
   id: string;
   author: string;
   authorEmail: string;
+  /** Empty in mock mode (mock comments aren't tied to a real user id) — ownership checks fall
+   * back to comparing `author` against the signed-in user's name in that case. */
+  authorId: string;
   role: string;
   body: string;
   createdAt: string;
@@ -73,6 +78,8 @@ export type TaskAttachment = {
   id: string;
   name: string;
   uploadedBy: string;
+  /** Empty in mock mode, same caveat as TaskComment.authorId. */
+  uploadedByUserId: string;
   uploadedAt: string;
   sizeLabel: string;
   /** True when attached via the task-creation dropzone rather than the Documents tab afterward
@@ -121,6 +128,7 @@ type RawTaskListItem = {
 type RawComment = {
   id: string;
   content: string;
+  authorId: string;
   authorName: string;
   authorEmail: string;
   authorRole: string;
@@ -132,6 +140,7 @@ type RawAttachment = {
   id: string;
   fileName: string;
   fileSize: number;
+  uploadedByUserId: string;
   uploadedByUserName: string;
   createdAt: string;
   isInitialUpload: boolean;
@@ -172,6 +181,7 @@ function mapComment(raw: RawComment): TaskComment {
     id: raw.id,
     author: raw.authorName,
     authorEmail: raw.authorEmail,
+    authorId: raw.authorId,
     role: raw.authorRole,
     body: raw.content,
     createdAt: raw.createdAt,
@@ -184,6 +194,7 @@ function mapAttachment(raw: RawAttachment): TaskAttachment {
     id: raw.id,
     name: raw.fileName,
     uploadedBy: raw.uploadedByUserName,
+    uploadedByUserId: raw.uploadedByUserId,
     uploadedAt: raw.createdAt,
     sizeLabel: formatFileSize(raw.fileSize),
     isInitialUpload: raw.isInitialUpload,
@@ -276,12 +287,13 @@ function taskDetailFromMock(task: AuditTask): TaskDetail {
       id: c.id,
       author: c.author,
       authorEmail: "",
+      authorId: "",
       role: c.role,
       body: c.body,
       createdAt: c.createdAt,
-      attachments: taskDocuments.filter((d) => d.commentId === c.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload })),
+      attachments: taskDocuments.filter((d) => d.commentId === c.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedByUserId: "", uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload })),
     })),
-    attachments: taskDocuments.filter((d) => d.taskId === task.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload, commentId: d.commentId })),
+    attachments: taskDocuments.filter((d) => d.taskId === task.id).map((d) => ({ id: d.id, name: d.name, uploadedBy: d.uploadedBy, uploadedByUserId: "", uploadedAt: d.uploadedAt, sizeLabel: d.size, isInitialUpload: d.isInitialUpload, commentId: d.commentId })),
     // Merges the mock's separate "status history" and "audit timeline" concepts into one — the
     // backend only exposes a single status-transition timeline (SS8 "Immutable audit trail"),
     // no broader activity feed (comment-added/attachment-uploaded events aren't queryable).
@@ -518,6 +530,22 @@ export async function addComment(taskId: string, author: string, role: Role, bod
   }
   const raw = await apiClient.post<RawComment>(`/tasks/${taskId}/comments`, { content: body });
   return { id: raw.id };
+}
+
+export async function updateComment(taskId: string, commentId: string, body: string): Promise<void> {
+  if (API_MODE === "mock") {
+    mockUpdateTaskComment(commentId, body);
+    return;
+  }
+  await apiClient.put<RawComment>(`/tasks/${taskId}/comments/${commentId}`, { content: body });
+}
+
+export async function deleteComment(taskId: string, commentId: string): Promise<void> {
+  if (API_MODE === "mock") {
+    mockDeleteTaskComment(commentId);
+    return;
+  }
+  await apiClient.delete<void>(`/tasks/${taskId}/comments/${commentId}`);
 }
 
 // ---------------------------------------------------------------------------

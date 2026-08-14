@@ -9,15 +9,24 @@ import { getTaskFilterOptions, getTasks, TASK_PAGE_SIZE, type TaskEntry, type Ta
 // "Overdue" isn't a real backend status (it's a due-date-derived flag folded into the display
 // status client-side — see displayTaskStatus), so it can't be sent as a `status` query param.
 // It's filtered client-side against the already-fetched page instead, further down.
-const statusOptions: Array<{ label: string; value: TaskStatus | "all" }> = [
+// "At risk" mirrors the executive dashboard's At-risk KPI (overdue OR due within 7 days) - also
+// not a real backend status, filtered client-side against the already-fetched page below, same
+// treatment as "Overdue" right above it.
+const statusOptions: Array<{ label: string; value: TaskStatus | "all" | "atrisk" }> = [
   { label: "All statuses", value: "all" },
   { label: "Open", value: "open" },
   { label: "In progress", value: "progress" },
   { label: "Overdue", value: "overdue" },
+  { label: "At risk", value: "atrisk" },
   { label: "Resolved", value: "resolved" },
   { label: "Reopened", value: "reopened" },
   { label: "Closed", value: "closed" },
 ];
+
+function dueInDays(dueDate: string): number {
+  if (!dueDate) return Infinity;
+  return Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000);
+}
 
 function formatDate(date: string) {
   if (!date) return "—";
@@ -31,7 +40,7 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   const [company, setCompany] = useState("");
   const [subCompany, setSubCompany] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [status, setStatus] = useState<TaskStatus | "all">("all");
+  const [status, setStatus] = useState<TaskStatus | "all" | "atrisk">("all");
   const [query, setQuery] = useState("");
   const [dateRange, setDateRange] = useState<"week" | "all" | "last30" | "quarter">(mode === "week" ? "week" : "all");
   const [page, setPage] = useState(1);
@@ -46,7 +55,7 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
     setAssignee("");
     // A dashboard stat card / donut segment can deep-link here with a status pre-applied
     // (e.g. /tasks/all?status=open) — honor it once on arrival, same as any other reset default.
-    setStatus((searchParams.get("status") as TaskStatus | null) ?? "all");
+    setStatus((searchParams.get("status") as TaskStatus | "atrisk" | null) ?? "all");
     setQuery("");
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,17 +71,22 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   const filterOptionsQuery = useQuery({ queryKey: ["tasks", "filter-options", role], queryFn: () => getTaskFilterOptions(role, user.email) });
   const tasksQuery = useQuery({
     queryKey: ["tasks", role, user.email, dateRange, company, subCompany, assignee, status, query, page],
-    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" ? "all" : status, query: query || undefined, page }),
+    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" || status === "atrisk" ? "all" : status, query: query || undefined, page }),
   });
 
   const filterOptions = filterOptionsQuery.data ?? { companies: [], subCompanies: [], assignees: [] };
-  // "Overdue" has no backend status to filter by — narrow the fetched page down client-side
-  // against the display status instead (see the statusOptions comment above). Note this only
-  // ever sees the current server page (20 rows), so Prev/Next still page through the underlying
-  // unfiltered result set rather than an "overdue-only" result set — a pre-existing approximation,
-  // just more visible now that pages are smaller than the old 100-row fetch.
+  // "Overdue"/"At risk" have no backend status to filter by — narrow the fetched page down
+  // client-side against the display status/due date instead (see the statusOptions comment
+  // above). Note this only ever sees the current server page (20 rows), so Prev/Next still page
+  // through the underlying unfiltered result set rather than an "at-risk-only" result set — a
+  // pre-existing approximation (already true of "Overdue"), just extended to the new value.
   const fetchedRows = tasksQuery.data?.items ?? [];
-  const rows = status === "overdue" ? fetchedRows.filter((task) => task.status === "overdue") : fetchedRows;
+  const rows =
+    status === "overdue"
+      ? fetchedRows.filter((task) => task.status === "overdue")
+      : status === "atrisk"
+        ? fetchedRows.filter((task) => task.status !== "closed" && task.status !== "resolved" && dueInDays(task.dueDate) <= 7)
+        : fetchedRows;
   const totalCount = tasksQuery.data?.totalCount ?? 0;
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * TASK_PAGE_SIZE + 1;
   const rangeEnd = totalCount === 0 ? 0 : rangeStart + fetchedRows.length - 1;
@@ -120,7 +134,7 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
             <option value="">{role === "Employee" ? "Assigned to you" : "Assignee: All"}</option>
             {filterOptions.assignees.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <select value={status} onChange={(event) => setFilterAndResetPage(setStatus, event.currentTarget.value as TaskStatus | "all")}>
+          <select value={status} onChange={(event) => setFilterAndResetPage(setStatus, event.currentTarget.value as TaskStatus | "all" | "atrisk")}>
             {statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           {mode === "all" ? (
@@ -159,7 +173,9 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
           <span>
             {status === "overdue"
               ? `Showing ${rows.length} overdue task${rows.length === 1 ? "" : "s"} on this page`
-              : `Showing ${rangeStart}-${rangeEnd} of ${totalCount} scoped tasks`}
+              : status === "atrisk"
+                ? `Showing ${rows.length} at-risk task${rows.length === 1 ? "" : "s"} on this page`
+                : `Showing ${rangeStart}-${rangeEnd} of ${totalCount} scoped tasks`}
           </span>
           <Pagination page={page} totalPages={tasksQuery.data?.totalPages ?? 1} onChange={setPage} />
         </div>

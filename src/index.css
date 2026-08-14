@@ -22,6 +22,13 @@
   --warning-bg: #FEF3DE;
   --danger: #D6303F;
   --danger-bg: #FDEAEC;
+  /* Severity/aging ramp (light -> dark = low -> critical risk) - executive dashboard priority-mix
+     and overdue-aging widgets only; --danger above stays the single-status color it already is
+     everywhere else. */
+  --sev-1: #FDECD2;
+  --sev-2: #F3B45A;
+  --sev-3: #E2793B;
+  --sev-4: #D6303F;
   --radius-sm: 8px;
   --radius: 14px;
   --radius-lg: 20px;
@@ -1213,6 +1220,15 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   margin-top: 14px;
 }
 
+.signin-credit {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, .4);
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+}
+
 .signin-form-wrap {
   flex: 1;
   display: flex;
@@ -1373,6 +1389,15 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   font-weight: 500;
   color: rgba(255, 255, 255, .6);
   margin-top: 14px;
+}
+
+.signin-credit {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, .4);
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
 }
 
 .signin-form-wrap {
@@ -1883,6 +1908,138 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
 
 .workload-row strong {
   text-align: right;
+}
+
+/* Executive dashboard additions - the 5-tile KPI row, priority/aging severity fills, new/enhanced
+   badges, and the net-backlog strip under the trend chart. .stat-grid itself (shared with the
+   Standard dashboard's 4-tile row) is untouched - this is an additive modifier only. */
+/* Compound selector (not just .stat-grid-exec) deliberately, so this wins on specificity rather
+   than source order - this file has more than one plain ".stat-grid { grid-template-columns:
+   repeat(4,...) }" rule later in the cascade (pre-existing duplication, not something this change
+   should try to clean up), and a same-specificity single-class rule would lose to whichever one
+   comes last regardless of which one this comment is next to. */
+.stat-grid.stat-grid-exec {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .stat-grid.stat-grid-exec {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dashboard-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.dashboard-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dashboard-badge.is-new {
+  background: #F2E9FE;
+  color: #7C3AED;
+}
+
+.dashboard-badge.is-enhanced {
+  background: var(--accent-100);
+  color: var(--accent-600);
+}
+
+.backlog-strip {
+  display: grid;
+  gap: 4px;
+  height: 44px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.backlog-bar {
+  position: relative;
+  height: 100%;
+}
+
+.backlog-bar .zero-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+}
+
+.backlog-bar .fill {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  border-radius: 3px;
+}
+
+.backlog-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.backlog-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.backlog-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* Reviewer performance needs a second line (avg turnaround) under the closed-count in the same
+   trailing cell - a wider modifier on the shared .workload-row grid rather than a new layout. */
+.workload-row.is-wide {
+  grid-template-columns: 160px minmax(0, 1fr) 56px;
+}
+
+.workload-row.is-wide strong {
+  display: block;
+}
+
+.workload-row.is-wide small {
+  display: block;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Higher specificity than the two (pre-existing, duplicated) plain ".risk-list li" rules
+   elsewhere in this file, so it wins regardless of source order. */
+.risk-list li.is-clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  transition: background .12s;
+}
+
+.risk-list li.is-clickable:hover {
+  background: var(--surface-subtle);
 }
 
 .task-page {
@@ -2486,6 +2643,39 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   line-height: 1.6;
 }
 
+.activity-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.activity-item-actions .icon-button.danger {
+  color: var(--danger);
+}
+
+.activity-item-actions .icon-button.danger:hover {
+  background: var(--danger-bg);
+}
+
+.comment-edit-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-edit-form textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
 .details-upload {
   display: grid;
   place-items: center;
@@ -2987,6 +3177,15 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   font-weight: 500;
   color: rgba(255, 255, 255, .6);
   margin-top: 14px;
+}
+
+.signin-credit {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, .4);
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
 }
 
 .signin-form-wrap {

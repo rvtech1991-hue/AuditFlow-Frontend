@@ -166,11 +166,16 @@ export type ExecutiveFilters = {
   status?: string;
 };
 
-export type ExecutiveKpis = { totalTasks: number; closureRate: number; avgTimeToClose: number; atRiskCount: number };
+// tasksByPriority keys are the backend's TaskPriority enum names as strings ("Critical"/"High"/
+// "Medium"/"Low") - same Dictionary<string,int> shape already used for tasksByStatus/tasksByCompany
+// on this response, not a new convention.
+export type ExecutiveKpis = { totalTasks: number; closureRate: number; avgTimeToClose: number; atRiskCount: number; onTimeClosureRate: number; tasksByPriority: Record<string, number> };
 export type TrendPoint = { period: string; created: number; closed: number };
 export type StatusMixCounts = { open: number; inProgress: number; resolved: number; closed: number; reopened: number };
 export type CompanyHealth = { id: string; name: string; taskCount: number; overdueCount: number; closureRate: number };
 export type TeamWorkloadEntry = { id: string; name: string; count: number };
+export type AgingBucket = { bucket: "0-7" | "8-14" | "15-30" | "30+"; count: number };
+export type ReviewerPerformanceEntry = { id: string; name: string; closedCount: number; avgTurnaroundDays: number };
 
 export type DashboardCompanyOption = { id: string; name: string };
 export type DashboardSubCompanyOption = { id: string; name: string; companyId: string };
@@ -224,7 +229,16 @@ export async function getExecutiveKpis(role: Role, filters: ExecutiveFilters): P
     const totalTasks = scoped.length;
     const closureRate = totalTasks ? Math.round((closed / totalTasks) * 100) : 0;
     const atRiskCount = scoped.filter((t) => t.status === "overdue").length;
-    return { totalTasks, closureRate, avgTimeToClose: 5.8, atRiskCount };
+    // Mock task fixtures don't carry a priority field (see mock-data/dashboard.ts) - illustrative
+    // fixed split rather than derived, same treatment as the hardcoded avgTimeToClose below.
+    return {
+      totalTasks,
+      closureRate,
+      avgTimeToClose: 5.8,
+      atRiskCount,
+      onTimeClosureRate: 84,
+      tasksByPriority: { Critical: Math.round(totalTasks * 0.08), High: Math.round(totalTasks * 0.27), Medium: Math.round(totalTasks * 0.42), Low: Math.round(totalTasks * 0.23) },
+    };
   }
   return apiClient.get<ExecutiveKpis>("/dashboard/executive/kpis", {
     companyId: filters.companyId,
@@ -289,11 +303,24 @@ export async function getExecutiveCompanyHealth(role: Role, filters: ExecutiveFi
   return data.map((c) => ({ id: c.companyId, name: c.companyName, taskCount: c.taskCount, overdueCount: c.overdueCount, closureRate: c.closureRate }));
 }
 
+// "At risk" here (overdue OR due within 7 days) must stay in lockstep with the At-risk KPI card's
+// own definition (getExecutiveKpis' atRiskCount = overdueTasks + dueSoonTasks) - this used to only
+// look at dueInDays < 0 (overdue only), which is why the KPI could say "5 at risk" while this list
+// showed a single overdue row underneath it.
 export async function getExecutiveRiskTasks(role: Role, filters: ExecutiveFilters): Promise<DashboardTask[]> {
   if (API_MODE === "mock") {
-    return [...scopedMockTasks(role, filters.companyName)].filter((t) => t.dueInDays < 0).sort((a, b) => a.dueInDays - b.dueInDays).slice(0, 4);
+    const atRisk = applyMockStatusFilter(scopedMockTasks(role, filters.companyName), filters.status).filter((t) => t.dueInDays <= 7 && t.status !== "closed" && t.status !== "resolved");
+    return atRisk.sort((a, b) => a.dueInDays - b.dueInDays).slice(0, 5);
   }
-  const data = await apiClient.get<RawTaskListItem[]>("/dashboard/executive/risk-tasks", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, limit: 4 });
+  const data = await apiClient.get<RawTaskListItem[]>("/dashboard/executive/risk-tasks", {
+    companyId: filters.companyId,
+    subCompanyId: filters.subCompanyId,
+    dateRange: filters.dateRange,
+    dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined,
+    status: filters.status,
+    limit: 5,
+  });
   return data.map(mapTaskListItem);
 }
 
@@ -303,4 +330,27 @@ export async function getExecutiveTeamWorkload(role: Role, filters: ExecutiveFil
   }
   const data = await apiClient.get<Array<{ userId: string; userName: string; totalAssigned: number }>>("/dashboard/executive/team-workload", { companyId: filters.companyId, subCompanyId: filters.subCompanyId });
   return data.map((w) => ({ id: w.userId, name: w.userName, count: w.totalAssigned }));
+}
+
+export async function getExecutiveAging(role: Role, filters: ExecutiveFilters): Promise<AgingBucket[]> {
+  if (API_MODE === "mock") {
+    const overdue = scopedMockTasks(role, filters.companyName).filter((t) => t.status === "overdue");
+    const bucketFor = (daysOverdue: number): AgingBucket["bucket"] => (daysOverdue <= 7 ? "0-7" : daysOverdue <= 14 ? "8-14" : daysOverdue <= 30 ? "15-30" : "30+");
+    const counts: Record<AgingBucket["bucket"], number> = { "0-7": 0, "8-14": 0, "15-30": 0, "30+": 0 };
+    overdue.forEach((t) => { counts[bucketFor(Math.abs(t.dueInDays))] += 1; });
+    return (["0-7", "8-14", "15-30", "30+"] as const).map((bucket) => ({ bucket, count: counts[bucket] }));
+  }
+  const data = await apiClient.get<Array<{ bucket: AgingBucket["bucket"]; count: number }>>("/dashboard/executive/aging", { companyId: filters.companyId, subCompanyId: filters.subCompanyId });
+  return data;
+}
+
+export async function getExecutiveReviewerPerformance(role: Role, filters: ExecutiveFilters): Promise<ReviewerPerformanceEntry[]> {
+  if (API_MODE === "mock") {
+    // Mock fixtures have no ClosedBy/turnaround data (see mock-data/dashboard.ts) - reuses the
+    // same named reviewers as the workload widget with illustrative counts, same treatment as
+    // the other hardcoded mock executive figures above.
+    return workload.map((w, index) => ({ id: w.name, name: w.name, closedCount: Math.max(4, w.count * 3 - index * 2), avgTurnaroundDays: Math.round((3.2 + index * 0.9) * 10) / 10 }));
+  }
+  const data = await apiClient.get<Array<{ userId: string; userName: string; closedCount: number; avgTurnaroundDays: number }>>("/dashboard/executive/reviewer-performance", { companyId: filters.companyId, subCompanyId: filters.subCompanyId, dateRange: filters.dateRange, dateFrom: filters.dateFrom ? toStartOfDayIso(filters.dateFrom) : undefined, dateTo: filters.dateTo ? toEndOfDayIso(filters.dateTo) : undefined });
+  return data.map((r) => ({ id: r.userId, name: r.userName, closedCount: r.closedCount, avgTurnaroundDays: r.avgTurnaroundDays }));
 }

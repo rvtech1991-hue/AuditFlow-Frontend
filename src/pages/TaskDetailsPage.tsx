@@ -13,8 +13,10 @@ import {
   assignTask,
   changeTaskStatus,
   deleteAttachment,
+  deleteComment,
   downloadAttachment,
   getTaskDetail,
+  updateComment,
   updateTask,
   uploadAttachment,
   type TaskAttachment,
@@ -22,7 +24,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../services/tasks";
-import type { Role } from "../types";
+import type { Role, User } from "../types";
 
 type TabKey = "overview" | "comments" | "documents" | "timeline";
 
@@ -53,6 +55,13 @@ async function downloadTaskAttachment(attachment: TaskAttachment): Promise<void>
   link.download = attachment.name;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/** True if `ownerId`/`ownerName` (an attachment uploader or comment author) is the signed-in
+ * user — compares by id when the field is populated (live mode) and falls back to name (mock
+ * mode, which has no real user ids attached to comments/attachments). */
+function isOwnedByCurrentUser(ownerId: string, ownerName: string, user: User): boolean {
+  return ownerId ? ownerId === user.id : ownerName === user.name;
 }
 
 function statusLabel(status: TaskStatus) {
@@ -233,6 +242,9 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
   const [pendingImages, setPendingImages] = useState<Array<{ file: File; previewUrl: string }>>([]);
   const [uploadError, setUploadError] = useState("");
   const [downloadError, setDownloadError] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [commentActionError, setCommentActionError] = useState("");
 
   // Object URLs (one per staged paste preview) must be revoked or they leak - a ref keeps the
   // unmount cleanup below reading the latest list instead of whatever was staged at mount time.
@@ -263,6 +275,32 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
     onMutate: () => setDownloadError(""),
     onError: (err) => setDownloadError(err instanceof ApiError ? err.detail : "Couldn't download the file."),
   });
+  const editMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) => updateComment(task.id, vars.commentId, vars.body),
+    onMutate: () => setCommentActionError(""),
+    onSuccess: () => {
+      setEditingCommentId(null);
+      setEditBody("");
+      queryClient.invalidateQueries({ queryKey: ["task", task.id] });
+    },
+    onError: (err) => setCommentActionError(err instanceof ApiError ? err.detail : "Couldn't save the comment."),
+  });
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => deleteComment(task.id, commentId),
+    onMutate: () => setCommentActionError(""),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task", task.id] }),
+    onError: (err) => setCommentActionError(err instanceof ApiError ? err.detail : "Couldn't delete the comment."),
+  });
+
+  const startEdit = (comment: TaskDetail["comments"][number]) => {
+    setEditingCommentId(comment.id);
+    setEditBody(comment.body);
+    setCommentActionError("");
+  };
+  const cancelEdit = () => {
+    setEditingCommentId(null);
+    setEditBody("");
+  };
 
   const handlePaste = (event: ClipboardEvent) => {
     const images = extractPastedImages(event);
@@ -312,11 +350,50 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
       ) : null}
       {mutation.isError ? <p className="form-error">{mutation.error instanceof ApiError ? mutation.error.detail : "Couldn't post the comment."}</p> : null}
       {downloadError ? <p className="form-error">{downloadError}</p> : null}
+      {commentActionError ? <p className="form-error">{commentActionError}</p> : null}
       <div className="activity-list">
-        {task.comments.map((comment) => (
+        {task.comments.map((comment) => {
+          const canModify = role === "Auditor" || isOwnedByCurrentUser(comment.authorId, comment.author, user);
+          const isEditing = editingCommentId === comment.id;
+          return (
           <article key={comment.id} className="activity-item">
-            <CellPerson initials={comment.author.split(" ").map((part) => part[0]).join("").slice(0, 2)} name={comment.author} meta={`${comment.role} - ${formatDateTime(comment.createdAt)}`} />
-            <p>{comment.body}</p>
+            <div className="activity-item-header">
+              <CellPerson initials={comment.author.split(" ").map((part) => part[0]).join("").slice(0, 2)} name={comment.author} meta={`${comment.role} - ${formatDateTime(comment.createdAt)}`} />
+              {canModify && !isEditing ? (
+                <div className="activity-item-actions">
+                  <button className="icon-button" type="button" aria-label="Edit comment" onClick={() => startEdit(comment)}>
+                    <i className="ti ti-pencil" />
+                  </button>
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    aria-label="Delete comment"
+                    disabled={deleteCommentMutation.isPending && deleteCommentMutation.variables === comment.id}
+                    onClick={() => deleteCommentMutation.mutate(comment.id)}
+                  >
+                    <i className="ti ti-trash" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            {isEditing ? (
+              <div className="comment-edit-form">
+                <textarea value={editBody} onChange={(event) => setEditBody(event.currentTarget.value)} />
+                <div className="modal-footer-actions">
+                  <Button type="button" onClick={cancelEdit}>Cancel</Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!editBody.trim() || editMutation.isPending}
+                    onClick={() => editMutation.mutate({ commentId: comment.id, body: editBody.trim() })}
+                  >
+                    {editMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p>{comment.body}</p>
+            )}
             {comment.attachments.length ? (
               <div className="comment-attachments">
                 {comment.attachments.map((attachment) => (
@@ -336,14 +413,15 @@ function CommentsTab({ task, canComment }: { task: TaskDetail; canComment: boole
               </div>
             ) : null}
           </article>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
 }
 
 function DocumentsTab({ task, attachments, canUpload }: { task: TaskDetail; attachments: TaskAttachment[]; canUpload: boolean }) {
-  const { user } = useRole();
+  const { user, role } = useRole();
   const queryClient = useQueryClient();
   const [uploadError, setUploadError] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -389,6 +467,10 @@ function DocumentsTab({ task, attachments, canUpload }: { task: TaskDetail; atta
       <div className="document-list">
         {attachments.map((document) => {
           const isDownloading = downloadMutation.isPending && downloadMutation.variables?.id === document.id;
+          // Everyone can download; delete is owner-only, except an Auditor who can moderate any
+          // document on the task (mirrors the backend's isElevated bypass in
+          // DeleteTaskAttachmentCommandHandler).
+          const canDelete = canUpload && (role === "Auditor" || isOwnedByCurrentUser(document.uploadedByUserId, document.uploadedBy, user));
           return (
             <div key={document.id} className="document-row">
               <div className="document-row-info">
@@ -399,7 +481,7 @@ function DocumentsTab({ task, attachments, canUpload }: { task: TaskDetail; atta
                 <button className="icon-button" type="button" aria-label={`Download ${document.name}`} disabled={isDownloading} onClick={() => downloadMutation.mutate(document)}>
                   <i className="ti ti-download" />
                 </button>
-                {canUpload ? (
+                {canDelete ? (
                   <button className="icon-button danger" type="button" aria-label={`Delete ${document.name}`} onClick={() => deleteMutation.mutate(document.id)}>
                     <i className="ti ti-trash" />
                   </button>

@@ -50,6 +50,7 @@ export function AuthShell({ children, copy }: AuthShellProps) {
             <div>
               <p className="signin-quote">{testimonial.quote}</p>
               <p className="signin-quote who">{testimonial.who}</p>
+              <p className="signin-credit">Powered by RvTech Solutions Pvt. Ltd.</p>
             </div>
           </div>
           <div className="signin-form-wrap">{children}</div>

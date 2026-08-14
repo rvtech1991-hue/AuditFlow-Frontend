@@ -452,6 +452,17 @@ export function addTaskComment(taskId: string, author: string, role: Role, body:
   return comment;
 }
 
+export function updateTaskComment(commentId: string, body: string) {
+  const comment = taskComments.find((c) => c.id === commentId);
+  if (comment) comment.body = body;
+  return comment;
+}
+
+export function deleteTaskComment(commentId: string) {
+  const index = taskComments.findIndex((c) => c.id === commentId);
+  if (index !== -1) taskComments.splice(index, 1);
+}
+
 export function addTaskDocument(taskId: string, uploadedBy: string, name: string, isInitialUpload = false, commentId?: string) {
   const document: TaskDocument = {
     id: `DOC-${taskDocuments.length + 1}`,

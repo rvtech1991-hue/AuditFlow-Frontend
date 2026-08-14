@@ -118,7 +118,7 @@ All 10 functional modules are wired end-to-end and live-tested against a real DB
 - 🔴 No real secrets for Production env (deliberately blank, must come from env/Key Vault); no CI/CD or Dockerfile; dead disabled auto-migrate code in `Program.cs` should be deleted; `AuditLog`/`TaskStatusHistory` soft-delete exclusion not properly implemented.
 - 🟠 Admin health endpoint's `lastBackupAt` field is a placeholder (`databaseSizeBytes`/`version`/`environment` are real, live-queried); instant emails (as opposed to in-app notification) never fire from Task events, only the daily digest works; no automated cross-tenant isolation tests (though `CrossTenantIsolationIntegrationTests.cs` may already exist — verify before assuming a gap).
 - 🟡 No MFA/global-exception-middleware test coverage; one known-failing test (Windows path-separator bug); bulk import is CSV-only despite ClosedXML already being a dependency; no self-service full-name edit.
-- 🟢 No dashboard caching (recomputes every request); `Redis` connection string configured but unused anywhere.
+- 🟢 `Redis` connection string configured but unused anywhere — the executive dashboard queries (2026-08-14) now use a 60s `IMemoryCache` (same pattern `GetSummaryAsync` already used), keyed per-user+filters, so this is in-process only and won't share hits across horizontally-scaled API instances; moving it to Redis is the natural next step if that becomes a real deployment. No write-path invalidation on the executive caches (matches the existing `ComputeTaskStatisticsAsync` precedent, not new) — a task edit can take up to 60s to show up on the executive dashboard.
 
 ---
 
