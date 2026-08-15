@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { navItems } from "../../lib/routes";
 import { useRole } from "../../lib/RoleContext";
 import { getSummary } from "../../services/dashboard";
+import { BrandMark } from "./BrandMark";
 import type { NavItem } from "../../types";
 
 const groups: NavItem["group"][] = ["Workspace", "Manage", "Platform"];
@@ -28,8 +29,8 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <NavLink to="/dashboard" className="brand">
-        <span className="brand-mark"><i className="ti ti-shield-check" /></span>
-        <span>AuditFlow</span>
+        <span className="brand-mark"><BrandMark /></span>
+        <span>TaskFlow</span>
       </NavLink>
 
       {groups.map((group) => {

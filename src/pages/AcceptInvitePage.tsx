@@ -83,7 +83,7 @@ export function AcceptInvitePage() {
       copy={{
         quote: (
           <>
-            You've been invited to join <b>{invite.companyName}</b> on AuditFlow as an <b>{invite.role}</b>.
+            You've been invited to join <b>{invite.companyName}</b> on TaskFlow as an <b>{invite.role}</b>.
           </>
         ),
         who: inviterWho,

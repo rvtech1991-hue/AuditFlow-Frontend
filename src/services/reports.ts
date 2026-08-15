@@ -171,7 +171,7 @@ export type ExportResult =
 function mockExportBlob(format: "excel" | "pdf", rows: ReportTaskRow[]): ExportResult {
   const header = "Task ID\tCompany\tSub-company\tTitle\tAssigned to\tStatus\tDue date";
   const body = rows.map((task) => [task.taskNumber, task.company, task.subCompany, task.title, task.assignee, task.status, task.dueDate].join("\t"));
-  const content = [`AuditFlow filtered task report`, `Generated ${new Date().toLocaleString()}`, "", header, ...body].join("\n");
+  const content = [`TaskFlow filtered task report`, `Generated ${new Date().toLocaleString()}`, "", header, ...body].join("\n");
   const blob = new Blob([content], { type: format === "excel" ? "application/vnd.ms-excel" : "application/pdf" });
   return { kind: "file", fileName: `auditflow-report.${format === "excel" ? "xls" : "pdf"}`, contentType: blob.type, blob };
 }

@@ -108,7 +108,7 @@ export function InviteUserPage() {
         <div className="modal-route-heading">
           <div>
             <h2 id="invite-user-title">Invite user</h2>
-            <p>They will receive an email invite to set their password and join AuditFlow.</p>
+            <p>They will receive an email invite to set their password and join TaskFlow.</p>
           </div>
           <button className="modal-close-button" type="button" aria-label="Close" onClick={() => navigate("/users")}><i className="ti ti-x" /></button>
         </div>

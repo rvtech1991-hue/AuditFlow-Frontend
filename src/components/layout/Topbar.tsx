@@ -43,7 +43,7 @@ export function Topbar() {
   return (
     <header className="topbar">
       <div>
-        <h1 className="page-title">{route?.title ?? "AuditFlow"}</h1>
+        <h1 className="page-title">{route?.title ?? "TaskFlow"}</h1>
         <p className="page-subtitle">{route?.subtitle ?? "Audit workspace foundation."}</p>
       </div>
       <div className="topbar-actions">

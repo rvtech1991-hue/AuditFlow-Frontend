@@ -29,13 +29,13 @@ export function ForgotPasswordPage() {
     <AuthShell
       copy={{
         quote: "Reset access without breaking the audit trail. Your activity, evidence, and sign-offs stay attached to your account.",
-        who: "AuditFlow account recovery",
+        who: "TaskFlow account recovery",
       }}
     >
       <form className="signin-form" onSubmit={handleSubmit}>
         <h2>{submitted ? "Check your email" : "Reset your password"}</h2>
         <p className="sub">
-          {submitted ? "If an active AuditFlow account exists, a reset link has been sent." : "Enter your work email and we'll send a secure reset link."}
+          {submitted ? "If an active TaskFlow account exists, a reset link has been sent." : "Enter your work email and we'll send a secure reset link."}
         </p>
         {submitted ? (
           <div className="auth-confirmation">

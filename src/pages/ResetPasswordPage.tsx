@@ -56,7 +56,7 @@ export function ResetPasswordPage() {
   if (submitted) {
     return (
       <AuthShell
-        copy={{ quote: "Your password has been reset.", who: "AuditFlow account recovery" }}
+        copy={{ quote: "Your password has been reset.", who: "TaskFlow account recovery" }}
       >
         <div className="signin-form">
           <h2>Password reset</h2>
@@ -74,7 +74,7 @@ export function ResetPasswordPage() {
 
   return (
     <AuthShell
-      copy={{ quote: "Choose a new password to finish resetting access to your account.", who: "AuditFlow account recovery" }}
+      copy={{ quote: "Choose a new password to finish resetting access to your account.", who: "TaskFlow account recovery" }}
     >
       <form className="signin-form" onSubmit={handleSubmit}>
         <h2>Reset your password</h2>

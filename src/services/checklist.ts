@@ -304,7 +304,7 @@ export async function deleteChecklistItem(id: string): Promise<void> {
 export type ChecklistExportResult = { fileName: string; contentType: string; blob: Blob };
 
 function mockExportBlob(scope: "mine" | "team", format: "excel" | "pdf"): ChecklistExportResult {
-  const content = `AuditFlow ${scope === "mine" ? "My Activity" : "Team Activity"} export\nGenerated ${new Date().toLocaleString()}`;
+  const content = `TaskFlow ${scope === "mine" ? "My Activity" : "Team Activity"} export\nGenerated ${new Date().toLocaleString()}`;
   const blob = new Blob([content], { type: format === "excel" ? "application/vnd.ms-excel" : "application/pdf" });
   return { fileName: `${scope}-activity.${format === "excel" ? "xls" : "pdf"}`, contentType: blob.type, blob };
 }

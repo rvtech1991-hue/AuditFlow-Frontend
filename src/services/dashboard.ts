@@ -531,7 +531,7 @@ export async function getExecutiveReviewerPerformance(role: Role, filters: Execu
 export type DashboardExportResult = { fileName: string; contentType: string; blob: Blob };
 
 function mockDashboardExportBlob(): DashboardExportResult {
-  const content = `AuditFlow Executive Dashboard Report\nGenerated ${new Date().toLocaleString()}`;
+  const content = `TaskFlow Executive Dashboard Report\nGenerated ${new Date().toLocaleString()}`;
   const blob = new Blob([content], { type: "application/pdf" });
   return { fileName: "executive-dashboard.pdf", contentType: blob.type, blob };
 }

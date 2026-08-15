@@ -762,7 +762,7 @@ export type TaskAuditLogExportResult = { fileName: string; contentType: string; 
 
 export async function exportTaskAuditLogPdf(taskId: string, taskNumber: string): Promise<TaskAuditLogExportResult> {
   if (API_MODE === "mock") {
-    const content = `AuditFlow Task Audit Log Report — ${taskNumber}\nGenerated ${new Date().toLocaleString()}`;
+    const content = `TaskFlow Task Audit Log Report — ${taskNumber}\nGenerated ${new Date().toLocaleString()}`;
     const blob = new Blob([content], { type: "application/pdf" });
     return { fileName: `task-audit-log-${taskNumber}.pdf`, contentType: blob.type, blob };
   }

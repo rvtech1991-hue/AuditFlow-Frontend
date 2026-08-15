@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { BrandMark } from "./BrandMark";
 
 type Testimonial = {
   quote: ReactNode;
@@ -12,7 +13,7 @@ const testimonials: Testimonial[] = [
     who: "Head of Internal Audit, Meridian Group",
   },
   {
-    quote: '"AuditFlow gave our teams one clean record for comments, documents, and sign-off."',
+    quote: '"TaskFlow gave our teams one clean record for comments, documents, and sign-off."',
     who: "Audit Partner, Patel & Co.",
   },
   {
@@ -44,8 +45,8 @@ export function AuthShell({ children, copy }: AuthShellProps) {
         <div className="signin-shell">
           <div className="signin-brand">
             <div className="brand auth-brand">
-              <div className="brand-mark">A</div>
-              <span>AuditFlow</span>
+              <div className="brand-mark"><BrandMark /></div>
+              <span>TaskFlow</span>
             </div>
             <div>
               <p className="signin-quote">{testimonial.quote}</p>
