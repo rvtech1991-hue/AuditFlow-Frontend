@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card, CellPerson, DonutChart, Table, Tooltip, TrendChart } from "../components/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge, Button, Card, CellPerson, DonutChart, Table, Toast, Tooltip, TrendChart, type ToastState } from "../components/ui";
 import type { DashboardTask } from "../mock-data/dashboard";
 import { useRole } from "../lib/RoleContext";
 import { todayDateInputValue } from "../lib/dateTime";
 import {
+  AUDIT_TASK_STATUS_ENUM,
+  CHECKLIST_ITEM_STATUS_ENUM,
   exportExecutiveDashboardPdf,
   getAnnouncements,
   getDashboardCompanyScope,
@@ -17,12 +19,17 @@ import {
   getExecutiveStatusMix,
   getExecutiveTeamWorkload,
   getExecutiveTrend,
+  getMyDay,
   getStatusBreakdown,
   getSummary,
   getWeeklyTasks,
   type ExecutiveFilters,
+  type MyDayItem,
   type TrendPoint,
 } from "../services/dashboard";
+import { changeTaskStatus } from "../services/tasks";
+import { updateChecklistItemStatus } from "../services/checklist";
+import { mapChecklistItemStatusEnum, type ChecklistItemStatus } from "../lib/checklistMapping";
 import { ApiError } from "../lib/apiClient";
 
 function triggerDashboardDownload(blob: Blob, fileName: string) {
@@ -132,6 +139,210 @@ function BacklogStrip({ points }: { points: TrendPoint[] }) {
   );
 }
 
+function sevClassForPriority(priority: MyDayItem["priority"]): string {
+  if (priority === "Critical") return "sev-4";
+  if (priority === "High") return "sev-3";
+  if (priority === "Medium") return "sev-2";
+  return "sev-1"; // Low, or a Personal item with no priority at all
+}
+
+function formatDueLabel(dueDate: string, isOverdue: boolean): string {
+  const due = new Date(dueDate);
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+  const dueDayStart = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  if (isOverdue) {
+    // Diff calendar-day boundaries, not raw timestamps — a task due at 11pm yesterday and one due
+    // at 1am yesterday are both "1d overdue" today, even though they're 22 hours apart in real time.
+    const diffDays = Math.round((todayStart.getTime() - dueDayStart.getTime()) / 86_400_000);
+    return formatOverdueLabel(diffDays);
+  }
+  if (dueDayStart.getTime() === todayStart.getTime()) {
+    return due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  return due.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
+function MyDayRow({ item, onOpenTask, onStart, onMarkResolved, onComplete }: {
+  item: MyDayItem;
+  onOpenTask: (taskId: string) => void;
+  onStart: (item: MyDayItem) => void;
+  onMarkResolved: (item: MyDayItem) => void;
+  onComplete: (item: MyDayItem) => void;
+}) {
+  const isTask = item.source === "AuditTask";
+  const metaParts: ReactNode[] = [
+    <span key="src" className={`myday-source ${isTask ? "task" : "personal"}`}>{isTask ? "TASK" : "PERSONAL"}</span>,
+  ];
+  if (isTask) {
+    metaParts.push(<span key="num" className="mono">{item.taskNumber}</span>);
+    if (item.assignedByName) {
+      metaParts.push(
+        <span key="by" className="assignee">
+          <span className="myday-av">{initials(item.assignedByName)}</span>{item.assignedByName}
+        </span>,
+      );
+    }
+  } else {
+    metaParts.push(<span key="personal-note">Personal checklist item</span>);
+  }
+
+  return (
+    <div className={`myday-row ${item.isOverdue ? "is-overdue" : ""}`}>
+      <span className={`sev-dot ${sevClassForPriority(item.priority)}`} />
+      <div className="myday-main">
+        <div className="myday-title">{item.title}</div>
+        <div className="myday-meta">{metaParts}</div>
+      </div>
+      <span className="myday-due">{formatDueLabel(item.dueDate, item.isOverdue)}</span>
+      {isTask && item.statusEnum === AUDIT_TASK_STATUS_ENUM.Open ? (
+        <button type="button" className="myday-quick start" onClick={() => onStart(item)}><i>▶</i>Start</button>
+      ) : isTask && item.statusEnum === AUDIT_TASK_STATUS_ENUM.InProgress ? (
+        <button type="button" className="myday-quick resolve" onClick={() => onMarkResolved(item)}><i>✓</i>Mark resolved</button>
+      ) : (
+        <span />
+      )}
+      {isTask ? (
+        <button type="button" className="myday-chevron" aria-label="Open task" onClick={() => onOpenTask(item.taskId!)}>→</button>
+      ) : (
+        <button type="button" className="myday-check" aria-label="Mark complete" onClick={() => onComplete(item)}>✓</button>
+      )}
+    </div>
+  );
+}
+
+function MyDayGroupSection({ title, tone, items, totalCount, onViewAll, ...actions }: {
+  title: string;
+  tone: "overdue" | "today" | "week";
+  items: MyDayItem[];
+  totalCount: number;
+  onViewAll: () => void;
+  onOpenTask: (taskId: string) => void;
+  onStart: (item: MyDayItem) => void;
+  onMarkResolved: (item: MyDayItem) => void;
+  onComplete: (item: MyDayItem) => void;
+}) {
+  if (totalCount === 0) return null;
+  const overflow = totalCount - items.length;
+  return (
+    <div className={`myday-group ${tone}`}>
+      <div className="myday-group-head"><span className="myday-group-title">{title}</span><span className="myday-group-count">{totalCount}</span></div>
+      <div className="myday-rows">
+        {items.map((item) => <MyDayRow key={item.id} item={item} {...actions} />)}
+        {overflow > 0 ? <button type="button" className="myday-overflow" onClick={onViewAll}>+{overflow} more — view all</button> : null}
+      </div>
+    </div>
+  );
+}
+
+function MyDayCard() {
+  const navigate = useNavigate();
+  const { user } = useRole();
+  const queryClient = useQueryClient();
+  const [toast, setToast] = useState<ToastState>(null);
+
+  const query = useQuery({ queryKey: ["dashboard", "my-day", user.email], queryFn: () => getMyDay(user.email) });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["checklist"] });
+  };
+
+  const taskStatusMutation = useMutation({
+    mutationFn: (vars: { taskId: string; status: "progress" | "resolved" }) => changeTaskStatus(vars.taskId, vars.status, user.name),
+    onSuccess: (_data, vars) => {
+      invalidate();
+      setToast({ kind: "success", message: vars.status === "progress" ? "Task started." : "Marked resolved — awaiting auditor sign-off." });
+    },
+    onError: (err) => setToast({ kind: "error", message: err instanceof ApiError ? err.detail : "Couldn't update that task." }),
+  });
+
+  // Mutation-level onSuccess always invalidates, regardless of direction; the toast (and whether
+  // it offers an "Undo") is per-call, since completing an item and undoing that need different messages.
+  const checklistStatusMutation = useMutation({
+    mutationFn: (vars: { id: string; status: ChecklistItemStatus }) => updateChecklistItemStatus(vars.id, vars.status),
+    onSuccess: invalidate,
+    onError: () => setToast({ kind: "error", message: "Couldn't update that item — try again." }),
+  });
+
+  const completeChecklistItem = (item: MyDayItem) => {
+    const previousStatus = mapChecklistItemStatusEnum(item.statusEnum);
+    checklistStatusMutation.mutate(
+      { id: item.id, status: "Completed" },
+      {
+        onSuccess: () =>
+          setToast({
+            kind: "success",
+            message: "Nice work — marked complete.",
+            action: {
+              label: "Undo",
+              onClick: () =>
+                checklistStatusMutation.mutate(
+                  { id: item.id, status: previousStatus },
+                  { onSuccess: () => setToast({ kind: "success", message: "Restored to your board." }) },
+                ),
+            },
+          }),
+      },
+    );
+  };
+
+  if (query.isLoading) return <Card className="myday-card"><p className="data-state">Loading your day…</p></Card>;
+  if (query.error || !query.data) return null; // non-critical widget — a failure here shouldn't block the rest of the dashboard
+
+  const data = query.data;
+  const groupActions = {
+    onOpenTask: (taskId: string) => taskId && navigate(`/tasks/${taskId}`),
+    onStart: (item: MyDayItem) => taskStatusMutation.mutate({ taskId: item.taskId!, status: "progress" }),
+    onMarkResolved: (item: MyDayItem) => taskStatusMutation.mutate({ taskId: item.taskId!, status: "resolved" }),
+    onComplete: completeChecklistItem,
+  };
+
+  const urgentOverdueCount = data.overdue.items.filter((i) => i.priority === "Critical" || i.priority === "High").length;
+  const progressPercent = data.totalToday === 0 ? 0 : Math.round((100 * data.completedToday) / data.totalToday);
+  const isEmpty = data.overdue.totalCount === 0 && data.dueToday.totalCount === 0 && data.dueThisWeek.totalCount === 0;
+
+  return (
+    <Card className="myday-card">
+      <div className="myday-head-row">
+        <div>
+          <div className="card-title">My Day <span className="dashboard-badge is-new">NEW</span></div>
+          <p className="card-sub">Every task assigned to you and every personal checklist item, grouped by urgency, worst first.</p>
+        </div>
+        {data.totalToday > 0 ? (
+          <div className="myday-progress">
+            <div className="myday-progress-num">{data.completedToday} <span>of {data.totalToday} wrapped up today</span></div>
+            <div className="myday-progress-bar"><div className="myday-progress-fill" style={{ width: `${progressPercent}%` }} /></div>
+          </div>
+        ) : null}
+      </div>
+
+      {urgentOverdueCount > 0 ? (
+        <div className="myday-focus"><i>⚠</i> {urgentOverdueCount} Critical/High item{urgentOverdueCount === 1 ? " is" : "s are"} overdue — start with these.</div>
+      ) : null}
+
+      {isEmpty ? (
+        <p className="data-state">You're all caught up — nothing overdue or due this week.</p>
+      ) : (
+        <>
+          <MyDayGroupSection title="Overdue" tone="overdue" items={data.overdue.items} totalCount={data.overdue.totalCount} onViewAll={() => navigate("/checklist")} {...groupActions} />
+          <MyDayGroupSection title="Due Today" tone="today" items={data.dueToday.items} totalCount={data.dueToday.totalCount} onViewAll={() => navigate("/checklist")} {...groupActions} />
+          <MyDayGroupSection title="Due This Week" tone="week" items={data.dueThisWeek.items} totalCount={data.dueThisWeek.totalCount} onViewAll={() => navigate("/checklist")} {...groupActions} />
+
+          <div className="legend-note">
+            <span><span className="dot" style={{ background: "var(--sev-4)" }} />Critical</span>
+            <span><span className="dot" style={{ background: "var(--sev-3)" }} />High</span>
+            <span><span className="dot" style={{ background: "var(--sev-2)" }} />Medium</span>
+            <span><span className="dot" style={{ background: "var(--sev-1)" }} />Low</span>
+          </div>
+        </>
+      )}
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
+    </Card>
+  );
+}
+
 function StandardDashboard() {
   const navigate = useNavigate();
   const [dismissedAnnouncementId, setDismissedAnnouncementId] = useState<string | null>(null);
@@ -196,6 +407,8 @@ function StandardDashboard() {
         <StatCard label="In progress" value={summary.inProgressTasks} onClick={() => goToStatus("progress")} />
         <StatCard label="Closed this week" value={summary.completedThisWeek} onClick={() => goToStatus("closed")} />
       </div>
+
+      <MyDayCard />
 
       <div className="dashboard-two-col">
         <Card title="Recently created tasks">

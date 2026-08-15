@@ -2,7 +2,10 @@ import { apiClient, type PagedResult } from "../lib/apiClient";
 import { API_MODE } from "../lib/config";
 import { toEndOfDayIso, toStartOfDayIso } from "../lib/dateTime";
 import { displayTaskStatus, mapTaskStatusEnum } from "../lib/taskStatusMapping";
+import { mapTaskPriorityEnum } from "../lib/taskPriorityMapping";
 import { companies, dashboardTasks, workload, type DashboardTask } from "../mock-data/dashboard";
+import { mockChecklistItems } from "../mock-data/checklist";
+import { auditTasks } from "../mock-data/tasks";
 import { getCompaniesForRole } from "./companies";
 import type { Role } from "../types";
 
@@ -140,6 +143,169 @@ export async function getAnnouncements(): Promise<DashboardAnnouncement[]> {
   }
   const data = await apiClient.get<RawAnnouncement[]>("/dashboard/announcements");
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// "My Day" planner — the logged-in user's own assigned Tasks + personal
+// checklist items, grouped Overdue / Due Today / Due This Week. Backend
+// (GetMyDayQueryHandler) reuses the exact merge ChecklistFeedBuilder already
+// does for "My Checklist" and caps each group server-side — mirror that here,
+// don't re-derive a second definition of "my work" in mock mode.
+// ---------------------------------------------------------------------------
+
+export type MyDayItem = {
+  id: string;
+  source: "Personal" | "AuditTask";
+  title: string;
+  dueDate: string; // ISO
+  isOverdue: boolean;
+  /** Raw enum int, undecoded — AuditTaskStatus for source "AuditTask" (Open=1/InProgress=2/
+   * Resolved=3/Closed=4/Reopened=5), ChecklistItemStatus for "Personal" (Pending=1/InProgress=2/
+   * Completed=3). Kept raw rather than mapped through displayTaskStatus because the quick-action
+   * buttons need to branch on the exact source-specific value, not a shared display label. */
+  statusEnum: number;
+  priority?: "Critical" | "High" | "Medium" | "Low"; // absent for Personal rows
+  taskId?: string;
+  taskNumber?: string;
+  companyName?: string;
+  assignedByName?: string;
+};
+
+export type MyDayGroup = { totalCount: number; items: MyDayItem[] };
+
+export type MyDay = {
+  totalToday: number;
+  completedToday: number;
+  overdue: MyDayGroup;
+  dueToday: MyDayGroup;
+  dueThisWeek: MyDayGroup;
+};
+
+type RawMyDayItem = {
+  id: string;
+  source: "Personal" | "AuditTask";
+  title: string;
+  dueDate: string;
+  status: number;
+  isOverdue: boolean;
+  taskId: string | null;
+  taskNumber: string | null;
+  companyName: string | null;
+  assignedByName: string | null;
+  priority: number | null;
+};
+
+/** AuditTaskStatus enum values (Domain.Common.Enums) - kept local since MyDayItem.statusEnum is
+ * intentionally raw/undecoded, unlike every other status in this app which goes through
+ * lib/taskStatusMapping.ts's string-union representation. */
+export const AUDIT_TASK_STATUS_ENUM = { Open: 1, InProgress: 2, Resolved: 3, Closed: 4, Reopened: 5 } as const;
+/** ChecklistItemStatus enum values, same reasoning. */
+export const CHECKLIST_ITEM_STATUS_ENUM = { Pending: 1, InProgress: 2, Completed: 3 } as const;
+
+type RawMyDayGroup = { totalCount: number; items: RawMyDayItem[] };
+
+function mapMyDayItem(raw: RawMyDayItem): MyDayItem {
+  return {
+    id: raw.id,
+    source: raw.source,
+    title: raw.title,
+    dueDate: raw.dueDate,
+    isOverdue: raw.isOverdue,
+    statusEnum: raw.status,
+    priority: raw.priority != null ? mapTaskPriorityEnum(raw.priority) : undefined,
+    taskId: raw.taskId ?? undefined,
+    taskNumber: raw.taskNumber ?? undefined,
+    companyName: raw.companyName ?? undefined,
+    assignedByName: raw.assignedByName ?? undefined,
+  };
+}
+
+function mapMyDayGroup(raw: RawMyDayGroup): MyDayGroup {
+  return { totalCount: raw.totalCount, items: raw.items.map(mapMyDayItem) };
+}
+
+const MY_DAY_MAX_PER_GROUP = 3;
+const PRIORITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+
+function groupMockMyDay(items: MyDayItem[]): MyDayGroup {
+  const ordered = [...items].sort((a, b) => {
+    const rank = (PRIORITY_RANK[b.priority ?? ""] ?? -1) - (PRIORITY_RANK[a.priority ?? ""] ?? -1);
+    return rank !== 0 ? rank : a.dueDate.localeCompare(b.dueDate);
+  });
+  return { totalCount: ordered.length, items: ordered.slice(0, MY_DAY_MAX_PER_GROUP) };
+}
+
+export async function getMyDay(userEmail: string): Promise<MyDay> {
+  if (API_MODE === "mock") {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 86_400_000);
+    const weekEnd = new Date(todayStart.getTime() + 7 * 86_400_000);
+
+    const checklistStatusEnum: Record<string, number> = { Pending: 1, InProgress: 2, Completed: 3 };
+    const taskStatusEnum: Record<string, number> = { open: 1, progress: 2, overdue: 1, resolved: 3, closed: 4, reopened: 5 };
+
+    const personal: MyDayItem[] = mockChecklistItems.map((c) => ({
+      id: c.id,
+      source: "Personal",
+      title: c.title,
+      dueDate: c.dueDate,
+      isOverdue: c.status !== "Completed" && new Date(c.dueDate) < now,
+      statusEnum: checklistStatusEnum[c.status] ?? 1,
+    }));
+    const assigned: MyDayItem[] = auditTasks
+      .filter((t) => t.assigneeEmail.toLowerCase() === userEmail.toLowerCase())
+      .map((t) => ({
+        id: t.id,
+        source: "AuditTask",
+        title: t.title,
+        dueDate: new Date(t.dueDate).toISOString(),
+        isOverdue: t.status !== "closed" && t.status !== "resolved" && new Date(t.dueDate) < now,
+        statusEnum: taskStatusEnum[t.status] ?? 1,
+        priority: t.priority,
+        taskId: t.id,
+        taskNumber: t.id,
+        companyName: t.company,
+        assignedByName: t.createdBy,
+      }));
+
+    const isDone = (item: MyDayItem, source: typeof personal[number]["source"]) =>
+      source === "AuditTask"
+        ? auditTasks.find((t) => t.id === item.id)?.status === "closed"
+        : mockChecklistItems.find((c) => c.id === item.id)?.status === "Completed";
+
+    const feed = [...personal, ...assigned];
+    const todayItems = feed.filter((f) => new Date(f.dueDate) >= todayStart && new Date(f.dueDate) < todayEnd);
+    const openFeed = feed.filter((f) => !isDone(f, f.source));
+
+    const overdue = openFeed.filter((f) => f.isOverdue);
+    const dueToday = openFeed.filter((f) => !f.isOverdue && new Date(f.dueDate) >= todayStart && new Date(f.dueDate) < todayEnd);
+    const dueThisWeek = openFeed.filter((f) => !f.isOverdue && new Date(f.dueDate) >= todayEnd && new Date(f.dueDate) < weekEnd);
+
+    return {
+      totalToday: todayItems.length,
+      completedToday: todayItems.filter((f) => isDone(f, f.source)).length,
+      overdue: groupMockMyDay(overdue),
+      dueToday: groupMockMyDay(dueToday),
+      dueThisWeek: groupMockMyDay(dueThisWeek),
+    };
+  }
+
+  const raw = await apiClient.get<{
+    totalToday: number;
+    completedToday: number;
+    overdue: RawMyDayGroup;
+    dueToday: RawMyDayGroup;
+    dueThisWeek: RawMyDayGroup;
+  }>("/dashboard/my-day");
+
+  return {
+    totalToday: raw.totalToday,
+    completedToday: raw.completedToday,
+    overdue: mapMyDayGroup(raw.overdue),
+    dueToday: mapMyDayGroup(raw.dueToday),
+    dueThisWeek: mapMyDayGroup(raw.dueThisWeek),
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -3599,6 +3599,18 @@ a.system-metric:hover .system-metric-chevron { opacity: 1; transform: translateX
   transition: opacity .15s ease, background-color .15s ease;
 }
 .toast > button:hover { opacity: 1; background: rgba(0, 0, 0, .08); }
+.toast > button.toast-action {
+  width: auto;
+  height: auto;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .08);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 1;
+}
+.toast > button.toast-action:hover { background: rgba(0, 0, 0, .16); }
 
 .toast-success { background: var(--success-bg); color: var(--success); }
 .toast-error { background: var(--danger-bg); color: var(--danger); }
@@ -4265,6 +4277,83 @@ table.grid-table td:has(> .badge) .badge::before {
 .filter-card p { display: flex; align-items: center; gap: 6px; color: var(--text-faint); font-size: 11.5px; }
 .progress-track span { background: var(--success); }
 .workload-track span { background: var(--accent); }
+
+/* ===== "My Day" planner card (Standard dashboard) =====
+   Reuses the executive dashboard's --sev-1..4 severity ramp for the priority dot and the
+   .dashboard-badge.is-new colors (#F2E9FE/#7C3AED) already established for recently-added widgets
+   — no new design tokens introduced. */
+.myday-head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.myday-progress { text-align: right; flex-shrink: 0; }
+.myday-progress-num { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.myday-progress-num span { color: var(--text-faint); font-weight: 600; }
+.myday-progress-bar { width: 120px; height: 5px; border-radius: 999px; background: var(--surface-subtle); margin-top: 5px; overflow: hidden; }
+.myday-progress-fill { height: 100%; background: var(--success); border-radius: 999px; }
+
+.myday-focus { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: var(--danger-bg); border: 1px solid rgba(214,48,63,.2); margin: 4px 0 18px; font-size: 12.5px; color: var(--danger); font-weight: 600; }
+.myday-focus i { font-style: normal; font-size: 15px; }
+
+.myday-group { margin-top: 18px; }
+.myday-group:first-of-type { margin-top: 4px; }
+.myday-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.myday-group-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.myday-group-count { font-size: 11px; font-weight: 700; color: var(--text-faint); }
+.myday-group.overdue .myday-group-title { color: var(--danger); }
+.myday-group.today .myday-group-title { color: var(--warning); }
+.myday-group.week .myday-group-title { color: var(--text-muted); }
+
+.myday-rows { display: flex; flex-direction: column; gap: 6px; }
+.myday-row {
+  display: grid; grid-template-columns: 18px 1fr auto auto auto; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-subtle);
+}
+.myday-row.is-overdue { border-color: rgba(214,48,63,.25); background: var(--danger-bg); }
+/* box-shadow ring (not a border, so it doesn't shift layout) so the dot stays visible even when its
+   fill color is close to the row's own background — sev-1's pale cream nearly disappeared against
+   the Overdue group's pink row tint before this. */
+.sev-dot { width: 9px; height: 9px; border-radius: 50%; justify-self: center; box-shadow: 0 0 0 1px rgba(18, 22, 43, 0.18); }
+.sev-dot.sev-1 { background: var(--sev-1); }
+.sev-dot.sev-2 { background: var(--sev-2); }
+.sev-dot.sev-3 { background: var(--sev-3); }
+.sev-dot.sev-4 { background: var(--sev-4); }
+
+.myday-main { min-width: 0; }
+.myday-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.myday-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 6px; align-items: center; overflow: hidden; }
+.myday-meta .mono { font-family: ui-monospace, 'SF Mono', monospace; font-size: 10.5px; flex-shrink: 0; }
+.myday-meta .assignee { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.myday-source { font-size: 9.5px; font-weight: 800; letter-spacing: .03em; padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
+.myday-source.task { background: var(--accent-100); color: var(--accent-600); }
+.myday-source.personal { background: #F2E9FE; color: #7C3AED; }
+.myday-av { width: 16px; height: 16px; border-radius: 50%; background: var(--accent-100); color: var(--accent-600); font-size: 7.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.myday-due { font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.myday-row.is-overdue .myday-due { color: var(--danger); }
+
+.myday-quick {
+  display: inline-flex; align-items: center; gap: 5px; font-family: inherit;
+  font-size: 11.5px; font-weight: 700; padding: 7px 13px; border-radius: 999px;
+  white-space: nowrap; border: none; cursor: pointer; color: #fff; letter-spacing: .01em;
+}
+.myday-quick i { font-style: normal; font-size: 10px; }
+.myday-quick.start { background: linear-gradient(135deg, var(--accent), var(--accent-600)); box-shadow: 0 4px 10px rgba(59,111,237,.32); }
+.myday-quick.resolve { background: linear-gradient(135deg, #22b368, var(--success)); box-shadow: 0 4px 10px rgba(23,151,75,.3); }
+
+.myday-check { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; color: transparent; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+.myday-check:hover { border-color: var(--success); color: var(--success); }
+.myday-chevron { width: 24px; height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 12px; flex-shrink: 0; cursor: pointer; }
+
+.myday-overflow {
+  display: flex; align-items: center; justify-content: center; padding: 8px; border-radius: 10px; font-family: inherit;
+  border: 1px dashed var(--border); background: none; font-size: 11.5px; font-weight: 600; color: var(--accent-600); cursor: pointer;
+}
+
+.legend-note { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); align-items: center; }
+.legend-note .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+@media (max-width: 700px) {
+  .myday-row { grid-template-columns: 16px 1fr; row-gap: 6px; }
+  .myday-row > *:nth-child(n+3) { grid-column: 2; }
+}
 
 @media (max-width: 860px) {
   .task-details-grid, .dashboard-two-col { grid-template-columns: 1fr; }
