@@ -14,6 +14,7 @@ const iconByKind: Record<NotificationKind, string> = {
   invitation: "ti-mail",
   announcement: "ti-speakerphone",
   report: "ti-file-check",
+  reminder: "ti-alarm",
 };
 
 const dotColorByKind: Record<NotificationKind, "green" | "amber" | "blue"> = {
@@ -26,6 +27,7 @@ const dotColorByKind: Record<NotificationKind, "green" | "amber" | "blue"> = {
   invitation: "blue",
   announcement: "amber",
   report: "green",
+  reminder: "amber",
 };
 
 function isToday(iso: string) {

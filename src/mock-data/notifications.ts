@@ -1,4 +1,4 @@
-export type NotificationKind = "assignment" | "status" | "comment" | "reopened" | "closed" | "mention" | "invitation" | "announcement" | "report";
+export type NotificationKind = "assignment" | "status" | "comment" | "reopened" | "closed" | "mention" | "invitation" | "announcement" | "report" | "reminder";
 
 export type MockNotification = {
   id: string;

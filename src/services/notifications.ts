@@ -38,6 +38,7 @@ const KIND_FROM_ENUM: Record<number, NotificationKind> = {
   7: "invitation",
   8: "announcement",
   9: "report",
+  10: "reminder",
 };
 
 type RawNotification = {
