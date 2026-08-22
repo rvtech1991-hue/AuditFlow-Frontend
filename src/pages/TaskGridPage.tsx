@@ -23,11 +23,6 @@ const statusOptions: Array<{ label: string; value: TaskStatus | "all" | "atrisk"
   { label: "Closed", value: "closed" },
 ];
 
-function dueInDays(dueDate: string): number {
-  if (!dueDate) return Infinity;
-  return Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000);
-}
-
 function formatDate(date: string) {
   if (!date) return "—";
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${date}T00:00:00`));
@@ -71,25 +66,18 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
   const filterOptionsQuery = useQuery({ queryKey: ["tasks", "filter-options", role], queryFn: () => getTaskFilterOptions(role, user.email) });
   const tasksQuery = useQuery({
     queryKey: ["tasks", role, user.email, dateRange, company, subCompany, assignee, status, query, page],
-    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status: status === "overdue" || status === "atrisk" ? "all" : status, query: query || undefined, page }),
+    queryFn: () => getTasks(role, user.email, { range: dateRange, company: company || undefined, subCompany: subCompany || undefined, assignee: assignee || undefined, status, query: query || undefined, page }),
   });
 
   const filterOptions = filterOptionsQuery.data ?? { companies: [], subCompanies: [], assignees: [] };
-  // "Overdue"/"At risk" have no backend status to filter by — narrow the fetched page down
-  // client-side against the display status/due date instead (see the statusOptions comment
-  // above). Note this only ever sees the current server page (20 rows), so Prev/Next still page
-  // through the underlying unfiltered result set rather than an "at-risk-only" result set — a
-  // pre-existing approximation (already true of "Overdue"), just extended to the new value.
-  const fetchedRows = tasksQuery.data?.items ?? [];
-  const rows =
-    status === "overdue"
-      ? fetchedRows.filter((task) => task.status === "overdue")
-      : status === "atrisk"
-        ? fetchedRows.filter((task) => task.status !== "closed" && task.status !== "resolved" && dueInDays(task.dueDate) <= 7)
-        : fetchedRows;
+  // "Overdue"/"At risk" have no backend status to filter by — getTasks() matches them against the
+  // full result set for the other filters and paginates that itself (see services/tasks.ts), so
+  // the page returned here is already the correct "overdue-only"/"at-risk-only" page, in sync with
+  // totalCount/totalPages below.
+  const rows = tasksQuery.data?.items ?? [];
   const totalCount = tasksQuery.data?.totalCount ?? 0;
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * TASK_PAGE_SIZE + 1;
-  const rangeEnd = totalCount === 0 ? 0 : rangeStart + fetchedRows.length - 1;
+  const rangeEnd = totalCount === 0 ? 0 : rangeStart + rows.length - 1;
   const title = mode === "week" ? "Tasks" : "All tasks";
   const subtitle =
     mode === "week"
@@ -163,8 +151,8 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
               { key: "createdOn", header: "Created on", render: (task) => formatDate(task.createdOn) },
               { key: "dueDate", header: "Due date", render: (task) => formatDate(task.dueDate) },
               ...(mode === "week" ? [{ key: "createdBy", header: "Created by" }] : []),
-              { key: "assignee", header: "Assigned to", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
-              { key: "status", header: "Status", render: (task) => <Badge status={task.status} /> },
+              { key: "assignee", header: "Assigned to", align: "left", render: (task) => <CellPerson initials={task.assigneeInitials} name={task.assignee} /> },
+              { key: "status", header: "Status", align: "left", render: (task) => <Badge status={task.status} /> },
             ]}
           />
         )}
@@ -172,9 +160,9 @@ export function TaskGridPage({ mode = "week" }: { mode?: "week" | "all" }) {
         <div className="pagination-footer">
           <span>
             {status === "overdue"
-              ? `Showing ${rows.length} overdue task${rows.length === 1 ? "" : "s"} on this page`
+              ? `Showing ${rangeStart}-${rangeEnd} of ${totalCount} overdue tasks`
               : status === "atrisk"
-                ? `Showing ${rows.length} at-risk task${rows.length === 1 ? "" : "s"} on this page`
+                ? `Showing ${rangeStart}-${rangeEnd} of ${totalCount} at-risk tasks`
                 : `Showing ${rangeStart}-${rangeEnd} of ${totalCount} scoped tasks`}
           </span>
           <Pagination page={page} totalPages={tasksQuery.data?.totalPages ?? 1} onChange={setPage} />

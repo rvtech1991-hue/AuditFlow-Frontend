@@ -137,10 +137,21 @@ failure, or an unhandled exception) uses the **same shape**, `application/proble
 - **Build the UI's error handling around `errorCode`**, not `detail` (detail is a human sentence
   meant for direct display, but `errorCode` is the stable machine-readable key for logic like "show
   a specific inline field error" vs. "show a generic toast").
-- One exception: automatic model-validation errors (malformed JSON, missing required field) come
-  back as the standard ASP.NET `ValidationProblemDetails` shape instead, which has an `errors`
-  object keyed by field name (`{"errors": {"email": ["..."]}}`) instead of a flat message — same
-  `errorCode: "VALIDATION_ERROR"` extension though, so you can still branch on that.
+- Validation errors — **both** automatic model-validation (malformed JSON, missing required field)
+  **and** FluentValidation failures thrown from the MediatR pipeline (`ValidationBehavior` →
+  `FluentValidation.ValidationException`) — come back as the standard ASP.NET
+  `ValidationProblemDetails` shape, with an `errors` object keyed by field name
+  (`{"errors": {"email": ["Invalid email format"]}}`) and `detail` set to the first concrete
+  field message rather than a generic sentence. Same `errorCode: "VALIDATION_ERROR"` extension
+  either way, so you can still branch on that. **Fixed 2026-08-22:** the FluentValidation path
+  previously fell through `GlobalApiExceptionHandler`'s generic exception-to-ProblemDetails switch
+  and returned a hardcoded `detail: "One or more validation errors occurred"` with no `errors` at
+  all — e.g. signing in with a too-short password surfaced that generic string instead of "Password
+  must be at least 8 characters". `WriteValidationProblemAsync` in `GlobalApiExceptionHandler.cs`
+  now special-cases `FluentValidation.ValidationException` before the generic switch, building a
+  proper `ValidationProblemDetails` from `exception.Errors` the same way automatic model-validation
+  always has. If you add a new FluentValidation validator, its per-field `.WithMessage(...)` text is
+  now what actually reaches the UI — write it as a user-facing sentence, not an internal note.
 - Common `errorCode` values you'll see across the API: `VALIDATION_ERROR`, `UNAUTHORIZED`,
   `FORBIDDEN`, `NOT_FOUND`, `USER_EXISTS`, `DUPLICATE_DOMAIN`, `INVALID_CREDENTIALS`,
   `INVALID_TOKEN`, `TOKEN_EXPIRED`, `INVITATION_USED`, `ACCOUNT_NOT_ACTIVE`, `INTERNAL_ERROR`.
@@ -692,5 +703,30 @@ fields the same way (`a.UploadedByUserId`, `a.UploadedByUser?.FullName`).
   still ignore date filtering entirely on this dashboard (pre-existing, unchanged).
 - Fixed in the same pass: `"lastquarter"` as a `dateRange` value was silently behaving like
   `"last8weeks"` — the day-count switch had no case for it.
+
+---
+
+## 14. Amendments from a QA pass on the Tasks grid and error handling (2026-08-22) — additive, doesn't invalidate §1-13
+
+**`GET /tasks` still has no way to filter by "overdue" or "at-risk" server-side** — confirmed
+still true, not a regression. Both remain purely `isOverdue`/due-date-derived, client-only
+concepts (§7's enum note already flagged this). What changed is how the frontend copes with that
+gap: `TaskGridPage`'s Overdue/At-risk filters used to fetch one normal server page (`pageSize=10`)
+of the caller's *other* filters and then narrow that single page down to overdue/at-risk rows —
+so the pagination control (built from the unfiltered total) and the rows actually shown on each
+page disagreed, e.g. showing 5 pages for a filter that only ever matched 6 rows total. `getTasks()`
+(`src/services/tasks.ts`) now loops `GET /tasks` at a larger page size (100/page, capped at 50
+pages) to pull every row matching the non-status filters, filters that full set by the derived
+status, and paginates the *filtered* set itself before returning a page. If you add a new endpoint
+that needs an "overdue"/"at-risk" server-side filter to avoid this fetch-everything workaround,
+it'd need a real `isOverdue`/`atRisk` query param on `GetTasksQuery` — doesn't exist today.
+
+**FluentValidation errors now return the real per-field message, not a generic string** — see the
+updated §4 error-envelope section above for the full detail (`GlobalApiExceptionHandler.cs`'s new
+`WriteValidationProblemAsync`). Practical effect for anyone testing sign-in/forms by hand: a
+too-short password or malformed email now shows e.g. "Password must be at least 8 characters"
+instead of "One or more validation errors occurred" — if you see the generic string again, either
+a new exception type needs the same field-message treatment, or something is bypassing
+`GlobalApiExceptionHandler` entirely (e.g. a controller catching and rethrowing).
 
 ---

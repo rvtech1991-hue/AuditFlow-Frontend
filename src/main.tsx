@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { initTheme } from "./lib/theme";
 import { queryClient } from "./lib/queryClient";
 import { RoleProvider, useRole } from "./lib/RoleContext";
@@ -110,22 +111,24 @@ initTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RoleProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomeRedirect />} />
-            {routes.map((route) => (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={route.public ? <PublicPage route={route} /> : <ProtectedRoute route={route} />}
-              />
-            ))}
-            <Route path="*" element={<HomeRedirect />} />
-          </Routes>
-        </BrowserRouter>
-      </RoleProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RoleProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<HomeRedirect />} />
+              {routes.map((route) => (
+                <Route
+                  key={route.path}
+                  path={route.path}
+                  element={route.public ? <PublicPage route={route} /> : <ProtectedRoute route={route} />}
+                />
+              ))}
+              <Route path="*" element={<HomeRedirect />} />
+            </Routes>
+          </BrowserRouter>
+        </RoleProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

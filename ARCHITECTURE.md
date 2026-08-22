@@ -20,7 +20,7 @@ flowchart LR
     end
 
     subgraph BE[".NET 8 Backend (AuditFlow.API)"]
-        MW["GlobalExceptionHandlingMiddleware"]
+        MW["GlobalApiExceptionHandler\n(IExceptionHandler)"]
         CTRL["Controllers\n(thin, MediatR dispatch)"]
         MED["MediatR Pipeline\nValidation → Logging → Performance"]
         HND["Feature Handlers\nApplication layer"]
@@ -54,7 +54,7 @@ flowchart LR
 flowchart TB
     subgraph API["AuditFlow.API"]
         C1["Controllers\n(build Command/Query, dispatch, wrap ApiResponse)"]
-        MID["Middleware\n(GlobalExceptionHandlingMiddleware)"]
+        MID["Exception handling\n(GlobalApiExceptionHandler, IExceptionHandler)"]
         HUB2["NotificationHub / SignalRRealtimeNotifier"]
     end
 
@@ -198,7 +198,7 @@ Frontend role bootstrap (`RoleContext.tsx`): in `mock` mode, restores a fake ses
 
 ```mermaid
 flowchart TD
-    ENTRY["main.tsx: QueryClientProvider → RoleProvider → BrowserRouter"] --> ROUTES["routes.ts table\n{path, access, ...}"]
+    ENTRY["main.tsx: ErrorBoundary → QueryClientProvider → RoleProvider → BrowserRouter"] --> ROUTES["routes.ts table\n{path, access, ...}"]
     ROUTES --> PR["ProtectedRoute"]
     PR -->|"!isAuthenticated"| SIGNIN["redirect → /signin\n(preserve intended path)"]
     PR -->|"role not in access[]"| FALLBACK["redirect → /admin/tenants (Platform admin)\nor /dashboard (everyone else)"]
@@ -213,6 +213,8 @@ flowchart TD
 ```
 
 If a route exists in `routes.ts` but has no matching branch in `main.tsx`'s switch, it silently renders `PlaceholderPage`. `/admin/audit-log` was the one real remaining case of this — fixed 2026-08-11 (`AuditLogPage`, filters + pagination against the `GET /admin/audit-log` endpoint, which already existed backend-side).
+
+**`ErrorBoundary` added 2026-08-22** (`src/components/ErrorBoundary.tsx`), wrapping everything shown in the diagram above at the outermost level. Before this there was no error boundary anywhere in the app — a render-time exception in any page produced a blank white screen; now it renders a "Something went wrong" fallback with a reload button. It only catches render/lifecycle errors, not data-fetch errors (those remain TanStack Query's per-page `isError` state).
 
 ---
 

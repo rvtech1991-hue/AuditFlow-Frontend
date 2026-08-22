@@ -344,7 +344,7 @@ export type TaskQueryFilters = {
   company?: string;
   subCompany?: string;
   assignee?: string;
-  status?: Exclude<TaskStatus, "overdue"> | "all";
+  status?: TaskStatus | "all" | "atrisk";
   query?: string;
   page?: number;
 };
@@ -363,28 +363,93 @@ export type TaskPage = {
   hasNextPage: boolean;
 };
 
+function dueInDays(dueDate: string): number {
+  if (!dueDate) return Infinity;
+  return Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000);
+}
+
+// "Overdue" and "At risk" aren't real backend statuses — overdue-ness is a due-date-derived flag
+// (see displayTaskStatus) and "at risk" (overdue OR due within 7 days, excluding closed/resolved)
+// has no backend equivalent at all. Neither can be pushed down into a server-side `status` filter,
+// so both are matched here against the full (unpaginated) result set for the other filters.
+function matchesDerivedStatus(task: TaskEntry, kind: "overdue" | "atrisk"): boolean {
+  if (kind === "overdue") return task.status === "overdue";
+  return task.status !== "closed" && task.status !== "resolved" && dueInDays(task.dueDate) <= 7;
+}
+
+function paginate(items: TaskEntry[], page: number): TaskPage {
+  const start = (page - 1) * TASK_PAGE_SIZE;
+  const pageItems = items.slice(start, start + TASK_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(items.length / TASK_PAGE_SIZE));
+  return { items: pageItems, totalCount: items.length, pageNumber: page, totalPages, hasPreviousPage: page > 1, hasNextPage: start + TASK_PAGE_SIZE < items.length };
+}
+
+// Fetches every task matching the non-status filters (company/sub-company/assignee/range/search),
+// looping over backend pages at a larger page size than the UI uses. Only called for the "overdue"
+// / "atrisk" filters above, where the full set has to be in hand before it can be filtered and
+// re-paginated client-side — a normal status filter never takes this path and keeps paging
+// server-side at TASK_PAGE_SIZE as before.
+const DERIVED_STATUS_FETCH_PAGE_SIZE = 100;
+const DERIVED_STATUS_FETCH_MAX_PAGES = 50;
+
+async function fetchAllTasksForDerivedStatus(filters: TaskQueryFilters): Promise<TaskEntry[]> {
+  const items: TaskEntry[] = [];
+  for (let pageNumber = 1; pageNumber <= DERIVED_STATUS_FETCH_MAX_PAGES; pageNumber++) {
+    const data = await apiClient.get<PagedResult<RawTaskListItem>>("/tasks", {
+      range: filters.range === "week" ? "this-week" : "all",
+      companyId: filters.company || undefined,
+      subCompanyId: filters.subCompany || undefined,
+      assignedToUserId: filters.assignee || undefined,
+      search: filters.query || undefined,
+      pageNumber,
+      pageSize: DERIVED_STATUS_FETCH_PAGE_SIZE,
+    });
+    items.push(...data.items.map(mapTaskListItem));
+    if (!data.hasNextPage) break;
+  }
+  return items;
+}
+
 export async function getTasks(role: Role, userEmail: string, filters: TaskQueryFilters): Promise<TaskPage> {
   const page = filters.page ?? 1;
+  const statusFilter = filters.status;
+
+  if (statusFilter === "overdue" || statusFilter === "atrisk") {
+    if (API_MODE === "mock") {
+      const allItems = mockQueryTasks(role, userEmail, {
+        dateRange: filters.range,
+        company: filters.company,
+        subCompany: filters.subCompany,
+        assignee: filters.assignee,
+        status: "all",
+        query: filters.query,
+      }).map(taskEntryFromMock);
+      const matched = allItems.filter((task) => matchesDerivedStatus(task, statusFilter));
+      return paginate(matched, page);
+    }
+    const allItems = await fetchAllTasksForDerivedStatus(filters);
+    const matched = allItems.filter((task) => matchesDerivedStatus(task, statusFilter));
+    return paginate(matched, page);
+  }
+
   if (API_MODE === "mock") {
     const allItems = mockQueryTasks(role, userEmail, {
       dateRange: filters.range,
       company: filters.company,
       subCompany: filters.subCompany,
       assignee: filters.assignee,
-      status: filters.status === "all" ? "all" : filters.status,
+      status: statusFilter ?? "all",
       query: filters.query,
     }).map(taskEntryFromMock);
-    const start = (page - 1) * TASK_PAGE_SIZE;
-    const items = allItems.slice(start, start + TASK_PAGE_SIZE);
-    const totalPages = Math.max(1, Math.ceil(allItems.length / TASK_PAGE_SIZE));
-    return { items, totalCount: allItems.length, pageNumber: page, totalPages, hasPreviousPage: page > 1, hasNextPage: start + TASK_PAGE_SIZE < allItems.length };
+    return paginate(allItems, page);
   }
+
   const data = await apiClient.get<PagedResult<RawTaskListItem>>("/tasks", {
     range: filters.range === "week" ? "this-week" : "all",
     companyId: filters.company || undefined,
     subCompanyId: filters.subCompany || undefined,
     assignedToUserId: filters.assignee || undefined,
-    status: filters.status && filters.status !== "all" ? mapTaskStatusToEnum(filters.status) : undefined,
+    status: statusFilter && statusFilter !== "all" ? mapTaskStatusToEnum(statusFilter) : undefined,
     search: filters.query || undefined,
     pageNumber: page,
     pageSize: TASK_PAGE_SIZE,
